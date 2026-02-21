@@ -106,7 +106,6 @@
 										<include>plugin.json</include>
 										<include>LICENSE</include>
 										<include>README</include>
-										<include>native/</include>
 									</includes>
 								</resource>
 							</resources>

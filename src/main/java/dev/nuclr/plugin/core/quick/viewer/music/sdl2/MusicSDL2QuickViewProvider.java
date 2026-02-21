@@ -4,6 +4,7 @@ import javax.swing.JComponent;
 
 import dev.nuclr.plugin.QuickViewItem;
 import dev.nuclr.plugin.QuickViewProvider;
+import sdl2.NativeLibExtractor;
 
 public class MusicSDL2QuickViewProvider implements QuickViewProvider {
 
@@ -29,6 +30,7 @@ public class MusicSDL2QuickViewProvider implements QuickViewProvider {
 
 	@Override
 	public boolean open(QuickViewItem item) {
+		NativeLibExtractor.ensureExtracted();
 		getPanel(); // ensure panel exists
 		return this.panel.load(item);
 	}
