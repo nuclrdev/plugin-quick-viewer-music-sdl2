@@ -1,0 +1,1 @@
+# plugin-quick-viewer-music-sdl2
