@@ -1,6 +1,7 @@
 package sdl2;
 
 import java.io.File;
+import java.util.Collections;
 
 import javax.sound.sampled.AudioFormat;
 
@@ -23,7 +24,8 @@ public class SDLMixerAudio {
 	    
     // SDL2 library interface (separate from SDL2_mixer)
     public interface SDL2 extends Library {
-        SDL2 INSTANCE = Native.load("SDL2", SDL2.class);
+        SDL2 INSTANCE = Native.load("SDL2", SDL2.class,
+                Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
         
         // SDL structures
         @Structure.FieldOrder({"freq", "format", "channels", "silence", 
@@ -63,7 +65,8 @@ public class SDLMixerAudio {
     
     // SDL_Mixer library interface
     public interface SDLMixer extends Library {
-        SDLMixer INSTANCE = Native.load("SDL2_mixer", SDLMixer.class);
+        SDLMixer INSTANCE = Native.load("SDL2_mixer", SDLMixer.class,
+                Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
         
         // SDL_Mixer functions
         int Mix_Init(int flags);
