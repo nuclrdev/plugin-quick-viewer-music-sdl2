@@ -27,6 +27,7 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
 import javax.swing.Timer;
+import javax.swing.UIManager;
 
 import dev.nuclr.plugin.QuickViewItem;
 import lombok.Data;
@@ -38,13 +39,13 @@ import sdl2.SDLMixerAudio;
 @Slf4j
 public class MusicSDl2ViewPanel extends JPanel {
 
-	private static final Color BG_COLOR = new Color(0x2B, 0x2B, 0x2B);
-	private static final Color ACCENT_COLOR = new Color(0x4E, 0x9A, 0xE1);
-	private static final Color TEXT_PRIMARY = new Color(0xBB, 0xBB, 0xBB);
-	private static final Color TEXT_SECONDARY = new Color(0x78, 0x78, 0x78);
-	private static final Color TRACK_BG = new Color(0x3C, 0x3F, 0x41);
-	private static final Color BUTTON_BG = new Color(0x3C, 0x3F, 0x41);
-	private static final Color BUTTON_HOVER = new Color(0x4C, 0x50, 0x52);
+	private Color bgColor;
+	private Color accentColor;
+	private Color textPrimary;
+	private Color textSecondary;
+	private Color trackBg;
+	private Color buttonBg;
+	private Color buttonHover;
 	
 	private BufferedImage image;
 
@@ -73,16 +74,28 @@ public class MusicSDl2ViewPanel extends JPanel {
 	private JLabel volumeLabel;
 
 	public MusicSDl2ViewPanel() {
+		bgColor       = uiColor("TextArea.background",      new Color(0x2B, 0x2B, 0x2B));
+		accentColor   = uiColor("Component.accentColor",    new Color(0x4E, 0x9A, 0xE1));
+		textPrimary   = uiColor("Label.foreground",         new Color(0xBB, 0xBB, 0xBB));
+		textSecondary = uiColor("Label.disabledForeground", new Color(0x78, 0x78, 0x78));
+		trackBg       = uiColor("Component.borderColor",    new Color(0x3C, 0x3F, 0x41));
+		buttonBg      = uiColor("Button.background",        new Color(0x3C, 0x3F, 0x41));
+		buttonHover   = uiColor("Button.hoverBackground",   new Color(0x4C, 0x50, 0x52));
 		setLayout(new BorderLayout());
-		setBackground(BG_COLOR);
+		setBackground(bgColor);
 		buildUI();
 		startUpdateTimer();
+	}
+
+	private static Color uiColor(String key, Color fallback) {
+		Color c = UIManager.getColor(key);
+		return c != null ? c : fallback;
 	}
 
 	private void buildUI() {
 		// ---- Top: Waveform visualizer + track info ----
 		JPanel topPanel = new JPanel(new BorderLayout());
-		topPanel.setBackground(BG_COLOR);
+		topPanel.setBackground(bgColor);
 		topPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 8));
 
 		waveformPanel = new WaveformPanel();
@@ -90,18 +103,18 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		JPanel infoPanel = new JPanel();
 		infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-		infoPanel.setBackground(BG_COLOR);
+		infoPanel.setBackground(bgColor);
 		infoPanel.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
 		trackNameLabel = new JLabel("No track loaded");
 		trackNameLabel.setFont(new Font("JetBrains Mono", Font.BOLD, 14));
-		trackNameLabel.setForeground(TEXT_PRIMARY);
+		trackNameLabel.setForeground(textPrimary);
 		trackNameLabel.setAlignmentX(CENTER_ALIGNMENT);
 		trackNameLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
 		trackInfoLabel = new JLabel(" ");
 		trackInfoLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
-		trackInfoLabel.setForeground(TEXT_SECONDARY);
+		trackInfoLabel.setForeground(textSecondary);
 		trackInfoLabel.setAlignmentX(CENTER_ALIGNMENT);
 		trackInfoLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -115,7 +128,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		// ---- Bottom: Controls ----
 		JPanel controlsPanel = new JPanel();
 		controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
-		controlsPanel.setBackground(BG_COLOR);
+		controlsPanel.setBackground(bgColor);
 		controlsPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 16, 20));
 
 		// Progress bar
@@ -126,23 +139,23 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		// Time labels
 		JPanel timePanel = new JPanel(new BorderLayout());
-		timePanel.setBackground(BG_COLOR);
+		timePanel.setBackground(bgColor);
 		timePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
 		currentTimeLabel = new JLabel("0:00");
 		currentTimeLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
-		currentTimeLabel.setForeground(TEXT_SECONDARY);
+		currentTimeLabel.setForeground(textSecondary);
 
 		totalTimeLabel = new JLabel("0:00");
 		totalTimeLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
-		totalTimeLabel.setForeground(TEXT_SECONDARY);
+		totalTimeLabel.setForeground(textSecondary);
 
 		timePanel.add(currentTimeLabel, BorderLayout.WEST);
 		timePanel.add(totalTimeLabel, BorderLayout.EAST);
 
 		// Buttons
 		JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-		buttonPanel.setBackground(BG_COLOR);
+		buttonPanel.setBackground(bgColor);
 		buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
 		rewindButton = createControlButton("\u23EE", "Rewind 10s");
@@ -165,7 +178,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		// Volume
 		JPanel volumePanel = new JPanel(new GridBagLayout());
-		volumePanel.setBackground(BG_COLOR);
+		volumePanel.setBackground(bgColor);
 		volumePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 
 		GridBagConstraints gbc = new GridBagConstraints();
@@ -174,14 +187,14 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		JLabel volIcon = new JLabel("\u266A");
 		volIcon.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 13));
-		volIcon.setForeground(TEXT_SECONDARY);
+		volIcon.setForeground(textSecondary);
 		gbc.gridx = 0;
 		gbc.weightx = 0;
 		volumePanel.add(volIcon, gbc);
 
 		volumeSlider = new JSlider(0, 100, 70);
-		volumeSlider.setBackground(BG_COLOR);
-		volumeSlider.setForeground(ACCENT_COLOR);
+		volumeSlider.setBackground(bgColor);
+		volumeSlider.setForeground(accentColor);
 		volumeSlider.setPreferredSize(new Dimension(140, 20));
 		volumeSlider.setFocusable(false);
 		volumeSlider.addChangeListener(e -> {
@@ -199,7 +212,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		volumeLabel = new JLabel("70%");
 		volumeLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
-		volumeLabel.setForeground(TEXT_SECONDARY);
+		volumeLabel.setForeground(textSecondary);
 		volumeLabel.setPreferredSize(new Dimension(38, 16));
 		gbc.gridx = 2;
 		gbc.weightx = 0;
@@ -223,8 +236,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 		JButton btn = new JButton(text);
 		btn.setToolTipText(tooltip);
 		btn.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 14));
-		btn.setForeground(TEXT_PRIMARY);
-		btn.setBackground(BUTTON_BG);
+		btn.setForeground(textPrimary);
+		btn.setBackground(buttonBg);
 		btn.setFocusPainted(false);
 		btn.setBorderPainted(false);
 		btn.setContentAreaFilled(true);
@@ -233,12 +246,12 @@ public class MusicSDl2ViewPanel extends JPanel {
 		btn.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {
-				btn.setBackground(BUTTON_HOVER);
+				btn.setBackground(buttonHover);
 			}
 
 			@Override
 			public void mouseExited(MouseEvent e) {
-				btn.setBackground(BUTTON_BG);
+				btn.setBackground(buttonBg);
 			}
 		});
 		return btn;
@@ -464,13 +477,13 @@ public class MusicSDl2ViewPanel extends JPanel {
 				int arc = barH;
 
 				// Background track
-				g2.setColor(TRACK_BG);
+				g2.setColor(trackBg);
 				g2.fillRoundRect(0, y, w, barH, arc, arc);
 
 				// Filled portion
 				int fillW = (int) (w * progress);
 				if (fillW > 0) {
-					g2.setColor(ACCENT_COLOR);
+					g2.setColor(accentColor);
 					g2.fillRoundRect(0, y, fillW, barH, arc, arc);
 				}
 
