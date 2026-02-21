@@ -1,0 +1,5 @@
+# Core Plugin: Quick PDF Viewer
+
+A **Nuclr Commander** quick-view plugin that show PDF files directly in the quick viewer panel 
+using **PDF Box**.
+

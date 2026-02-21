@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"name": "Music Quick Viewer (SDL2",
+	"id": "dev.nuclr.plugin.core.quick.viewer.music.sdl2.MusicSDL2QuickViewProvider",
+	"version": "1.0.0",
+	"description": "A quick viewer for music/sound files.",
+	"author": "Nuclr Development Team",
+	"license": "Apache-2.0",
+	"website": "https://nuclr.dev",
+	"pageUrl": "https://nuclr.dev/plugins/core/music-sdl2-quick-viewer.html",
+	"docUrl": "https://nuclr.dev/plugins/core/music-sdl2-quick-viewer.html",
+	"type": "Official",
+	"quickViewProviders": [
+		"dev.nuclr.plugin.core.quick.viewer.music.sdl2.MusicSDL2QuickViewProvider"
+	]
+}
