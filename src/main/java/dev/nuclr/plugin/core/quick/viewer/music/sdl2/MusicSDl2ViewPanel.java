@@ -17,6 +17,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -344,13 +345,14 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	// ---- Public API ----
-	public boolean load(QuickViewItem item) {
-		
+	public boolean load(QuickViewItem item, AtomicBoolean cancelled) {
+		if (cancelled.get()) return false;
+
 		this.currentFile = item;
 		var file = currentFile.path().toFile();
-		
+
 		try {
-			
+
 			if (TrackerMusic != null) {
 				TrackerMusic.stopMusic();
 			} else {
@@ -359,10 +361,15 @@ public class MusicSDl2ViewPanel extends JPanel {
 				TrackerMusic.enableVisualizer(audioRingBuffer);
 				waveformPanel.setRingBuffer(audioRingBuffer);
 			}
-			
+
+			if (cancelled.get()) return false;
 
 			audioRingBuffer.clear();
 			TrackerMusic.loadMusic(file);
+			if (cancelled.get()) {
+				TrackerMusic.stopMusic();
+				return false;
+			}
 			TrackerMusic.playMusic(-1);
 
 			String name = file.getName();

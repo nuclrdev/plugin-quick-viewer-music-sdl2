@@ -1,5 +1,7 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.swing.JComponent;
 
 import dev.nuclr.plugin.QuickViewItem;
@@ -9,6 +11,7 @@ import sdl2.NativeLibExtractor;
 public class MusicSDL2QuickViewProvider implements QuickViewProvider {
 
 	private MusicSDl2ViewPanel panel;
+	private volatile AtomicBoolean currentCancelled;
 
 	@Override
 	public String getPluginClass() {
@@ -29,14 +32,17 @@ public class MusicSDL2QuickViewProvider implements QuickViewProvider {
 	}
 
 	@Override
-	public boolean open(QuickViewItem item) {
+	public boolean open(QuickViewItem item, AtomicBoolean cancelled) {
+		if (currentCancelled != null) currentCancelled.set(true);
+		this.currentCancelled = cancelled;
 		NativeLibExtractor.ensureExtracted();
 		getPanel(); // ensure panel exists
-		return this.panel.load(item);
+		return this.panel.load(item, cancelled);
 	}
 
 	@Override
 	public void close() {
+		if (currentCancelled != null) currentCancelled.set(true);
 		if (this.panel != null) {
 			this.panel.clear();
 		}
