@@ -1,8 +1,8 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
-import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
@@ -15,45 +15,35 @@ import javax.swing.Timer;
 import sdl2.AudioRingBuffer;
 
 /**
- * Neon mirrored waveform visualizer panel.
+ * Smoothed mirrored waveform visualizer panel.
  * <p>
- * Renders a smooth, Catmull-Rom interpolated amplitude envelope mirrored
- * around a horizontal center line, filled with a cyan→blue→purple→pink
- * gradient and surrounded by a multi-pass glow.
- * <p>
- * All buffers and paths are pre-allocated; no per-frame object creation
- * except the Graphics2D copy (required by Swing contract).
+ * Renders a calm "glass ribbon" waveform with a soft background gradient,
+ * subtle guide lines, and restrained edge highlights.
  */
 public class WaveformPanel extends JPanel {
 
-	// --- Background ---
-	private static final Color BG = new Color(0x1A, 0x1A, 0x1E);
+	// Background palette
+	private static final Color BG_TOP = new Color(0x0D, 0x18, 0x24);
+	private static final Color BG_BOTTOM = new Color(0x08, 0x10, 0x1B);
 
-	// --- Gradient: cyan → blue → purple → pink ---
-	private static final float[] GRAD_FRACTIONS = {0f, 0.33f, 0.66f, 1f};
-	private static final Color[] GRAD_COLORS = {
-			new Color(0x00, 0xE5, 0xFF),  // cyan
-			new Color(0x29, 0x79, 0xFF),  // blue
-			new Color(0xAA, 0x00, 0xFF),  // purple
-			new Color(0xFF, 0x14, 0x93),  // pink
-	};
+	// Ribbon colors
+	private static final Color RIBBON_START = new Color(0x6E, 0xD7, 0xD0, 210);
+	private static final Color RIBBON_MID = new Color(0x57, 0x8D, 0xE0, 190);
+	private static final Color RIBBON_END = new Color(0x89, 0x6A, 0xD9, 210);
+	private static final Color EDGE = new Color(0xC9, 0xF4, 0xF0, 170);
+	private static final Color CENTER_LINE = new Color(0xCA, 0xDB, 0xEC, 50);
+	private static final Color GRID = new Color(0xB0, 0xC5, 0xD8, 20);
+	private static final Color VIGNETTE = new Color(0, 0, 0, 70);
 
-	// --- Glow layers (outer → inner) ---
-	private static final BasicStroke[] GLOW_STROKES = {
-			new BasicStroke(14f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND),
-			new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND),
-			new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND),
-			new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND),
-	};
-	private static final AlphaComposite[] GLOW_ALPHAS = {
-			AlphaComposite.SrcOver.derive(0.06f),
-			AlphaComposite.SrcOver.derive(0.12f),
-			AlphaComposite.SrcOver.derive(0.22f),
-			AlphaComposite.SrcOver.derive(0.35f),
-	};
-	private static final AlphaComposite FILL_ALPHA = AlphaComposite.SrcOver.derive(0.85f);
+	private static final float[] RIBBON_FRACTIONS = {0f, 0.5f, 1f};
+	private static final Color[] RIBBON_COLORS = {RIBBON_START, RIBBON_MID, RIBBON_END};
 
-	// --- Signal processing constants ---
+	private static final BasicStroke EDGE_GLOW = new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final BasicStroke EDGE_LINE = new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final BasicStroke GRID_STROKE = new BasicStroke(1f);
+	private static final BasicStroke CENTER_STROKE = new BasicStroke(1.1f);
+
+	// Signal processing constants
 	private static final int NUM_POINTS = 200;
 	private static final int SNAPSHOT_SAMPLES = 22050; // ~500ms at 44.1kHz
 	private static final int SMOOTH_PASSES = 3;
@@ -62,37 +52,40 @@ public class WaveformPanel extends JPanel {
 	private static final float ATTACK = 0.45f;
 	private static final float DECAY = 0.12f;
 
-	// --- Audio data source ---
+	// Audio data source
 	private AudioRingBuffer ringBuffer;
 
-	// --- Pre-allocated processing buffers ---
+	// Pre-allocated processing buffers
 	private final float[] snapshotBuf = new float[SNAPSHOT_SAMPLES];
 	private final float[] rawAmps = new float[NUM_POINTS];
 	private final float[] smoothBuf = new float[NUM_POINTS];
 	private final float[] displayAmps = new float[NUM_POINTS];
 
-	// --- Pre-allocated path-building arrays ---
+	// Pre-allocated path-building arrays
 	private final float[] topX = new float[NUM_POINTS];
 	private final float[] topY = new float[NUM_POINTS];
 	private final float[] botY = new float[NUM_POINTS];
 	private final float[] revX = new float[NUM_POINTS];
 	private final float[] revY = new float[NUM_POINTS];
 
-	// --- Reusable Path2D objects ---
+	// Reusable Path2D objects
 	private final Path2D.Float topPath = new Path2D.Float();
 	private final Path2D.Float botPath = new Path2D.Float();
 	private final Path2D.Float fillPath = new Path2D.Float();
 
-	// --- Cached gradient (recreated when panel width changes) ---
-	private LinearGradientPaint gradientPaint;
+	// Cached paints
+	private LinearGradientPaint bgPaint;
+	private LinearGradientPaint ribbonPaint;
+	private GradientPaint edgeGlowPaint;
 	private int cachedWidth = -1;
+	private int cachedHeight = -1;
 
-	// --- Animation timer ---
+	// Animation timer
 	private final Timer animTimer;
 
 	public WaveformPanel() {
 		setOpaque(true);
-		setBackground(BG);
+		setBackground(BG_BOTTOM);
 		animTimer = new Timer(16, e -> repaint()); // ~60 fps
 		animTimer.start();
 	}
@@ -109,10 +102,6 @@ public class WaveformPanel extends JPanel {
 		if (!animTimer.isRunning()) animTimer.start();
 	}
 
-	// =========================================================================
-	// Rendering
-	// =========================================================================
-
 	@Override
 	protected void paintComponent(Graphics g) {
 		int w = getWidth();
@@ -123,17 +112,13 @@ public class WaveformPanel extends JPanel {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-			// Dark background
-			g2.setColor(BG);
+			// Background
+			updateCachedPaints(w, h);
+			g2.setPaint(bgPaint);
 			g2.fillRect(0, 0, w, h);
+			drawGuides(g2, w, h);
 
 			if (ringBuffer == null || w < 10 || h < 10) return;
-
-			// Rebuild gradient when width changes
-			if (w != cachedWidth) {
-				cachedWidth = w;
-				gradientPaint = new LinearGradientPaint(0, 0, w, 0, GRAD_FRACTIONS, GRAD_COLORS);
-			}
 
 			// 1. Snapshot audio data from ring buffer
 			int samples = ringBuffer.snapshot(snapshotBuf, SNAPSHOT_SAMPLES);
@@ -162,31 +147,59 @@ public class WaveformPanel extends JPanel {
 
 			// 6. Build all three paths (top contour, bottom contour, filled shape)
 			float centerY = h / 2f;
-			float halfH = h * 0.42f;
+			float halfH = h * 0.40f;
 			buildPaths(w, centerY, halfH);
 
-			// 7. Draw glow layers on contour edges
-			for (int pass = 0; pass < GLOW_STROKES.length; pass++) {
-				g2.setStroke(GLOW_STROKES[pass]);
-				g2.setComposite(GLOW_ALPHAS[pass]);
-				g2.setPaint(gradientPaint);
-				g2.draw(topPath);
-				g2.draw(botPath);
-			}
-
-			// 8. Fill the mirrored waveform body
-			g2.setComposite(FILL_ALPHA);
-			g2.setPaint(gradientPaint);
+			// 7. Fill the mirrored waveform ribbon
+			g2.setPaint(ribbonPaint);
 			g2.fill(fillPath);
+
+			// 8. Edge highlight and soft glow
+			g2.setPaint(edgeGlowPaint);
+			g2.setStroke(EDGE_GLOW);
+			g2.draw(topPath);
+			g2.draw(botPath);
+
+			g2.setPaint(EDGE);
+			g2.setStroke(EDGE_LINE);
+			g2.draw(topPath);
+			g2.draw(botPath);
+
+			// 9. Soft vignette
+			g2.setColor(VIGNETTE);
+			g2.fillRect(0, 0, w, 2);
+			g2.fillRect(0, h - 2, w, 2);
 
 		} finally {
 			g2.dispose();
 		}
 	}
 
-	// =========================================================================
-	// Signal processing (all operate on pre-allocated arrays, zero allocation)
-	// =========================================================================
+	private void updateCachedPaints(int w, int h) {
+		if (w == cachedWidth && h == cachedHeight) {
+			return;
+		}
+		cachedWidth = w;
+		cachedHeight = h;
+		bgPaint = new LinearGradientPaint(0, 0, 0, h,
+			new float[]{0f, 1f},
+			new Color[]{BG_TOP, BG_BOTTOM});
+		ribbonPaint = new LinearGradientPaint(0, 0, w, 0, RIBBON_FRACTIONS, RIBBON_COLORS);
+		edgeGlowPaint = new GradientPaint(0, 0, new Color(0xA9, 0xF0, 0xE8, 70), w, 0, new Color(0xB8, 0xA8, 0xEE, 65));
+	}
+
+	private static void drawGuides(Graphics2D g2, int w, int h) {
+		g2.setStroke(GRID_STROKE);
+		g2.setColor(GRID);
+		int lines = 6;
+		for (int i = 1; i < lines; i++) {
+			int y = i * h / lines;
+			g2.drawLine(0, y, w, y);
+		}
+		g2.setStroke(CENTER_STROKE);
+		g2.setColor(CENTER_LINE);
+		g2.drawLine(0, h / 2, w, h / 2);
+	}
 
 	private void downsampleRMS(float[] src, int srcLen) {
 		float binSize = (float) srcLen / NUM_POINTS;
@@ -216,10 +229,6 @@ public class WaveformPanel extends JPanel {
 		}
 	}
 
-	// =========================================================================
-	// Path building: Catmull-Rom spline interpolation
-	// =========================================================================
-
 	private void buildPaths(float w, float cy, float hh) {
 		float dx = w / (NUM_POINTS - 1);
 
@@ -232,15 +241,15 @@ public class WaveformPanel extends JPanel {
 			botY[i] = cy + a * hh;
 		}
 
-		// Top contour path (open, left → right) — used for glow
+		// Top contour path (open, left to right)
 		topPath.reset();
 		catmullRomPath(topPath, topX, topY, NUM_POINTS, true);
 
-		// Bottom contour path (open, left → right) — used for glow
+		// Bottom contour path (open, left to right)
 		botPath.reset();
 		catmullRomPath(botPath, topX, botY, NUM_POINTS, true);
 
-		// Filled shape: top L→R, then bottom R→L (reversed)
+		// Filled shape: top left-to-right, then bottom right-to-left
 		fillPath.reset();
 		catmullRomPath(fillPath, topX, topY, NUM_POINTS, true);
 
@@ -280,7 +289,7 @@ public class WaveformPanel extends JPanel {
 			float xNext = (i + 2 < count) ? px[i + 2] : x1 + (x1 - x0);
 			float yNext = (i + 2 < count) ? py[i + 2] : y1;
 
-			// Catmull-Rom → cubic Bezier control points
+			// Catmull-Rom to cubic Bezier control points
 			float cp1x = x0 + (x1 - xPrev) / 6f;
 			float cp1y = y0 + (y1 - yPrev) / 6f;
 			float cp2x = x1 - (xNext - x0) / 6f;
