@@ -15,7 +15,6 @@ import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,7 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
-import dev.nuclr.plugin.QuickViewItem;
+import dev.nuclr.plugin.PluginPathResource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import sdl2.AudioRingBuffer;
@@ -57,7 +56,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	public static SDLMixerAudio TrackerMusic;
 	private static AudioRingBuffer audioRingBuffer;
 
-	private QuickViewItem currentFile;
+	private PluginPathResource currentFile;
 	private Timer updateTimer;
 	private WaveformPanel waveformPanel;
 
@@ -269,7 +268,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			TrackerMusic.pauseMusic();
 		} else if (currentFile != null) {
 			try {
-				TrackerMusic.loadMusic(currentFile.path().toFile());
+				TrackerMusic.loadMusic(currentFile.getPath().toFile());
 				TrackerMusic.playMusic(-1);
 			} catch (Exception e) {
 				log.error("Failed to restart music: {}", e.getMessage(), e);
@@ -345,11 +344,16 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	// ---- Public API ----
-	public boolean load(QuickViewItem item, AtomicBoolean cancelled) {
+	public boolean load(PluginPathResource item, AtomicBoolean cancelled) {
 		if (cancelled.get()) return false;
 
 		this.currentFile = item;
-		var file = currentFile.path().toFile();
+		if (currentFile.getPath() == null) {
+			trackNameLabel.setText("Unsupported item");
+			trackInfoLabel.setText("This viewer requires a filesystem path");
+			return false;
+		}
+		var file = currentFile.getPath().toFile();
 
 		try {
 
