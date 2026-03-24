@@ -19,6 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SDLMixerAudio {
 
+    static {
+        // Ensure JNA sees extracted/brew-installed libraries before the interfaces initialize.
+        NativeLibExtractor.ensureExtracted();
+    }
+
 	private int audioDevice = 0;
 	private AudioFormat format;
 	    
@@ -129,8 +134,10 @@ public class SDLMixerAudio {
             } catch (UnsatisfiedLinkError e) {
                 throw new RuntimeException(
                     "SDL2 library not found. Please install SDL2:\n" +
-                    "  Linux: sudo apt-get install libsdl2-dev\n" +
-                    "  macOS: brew install sdl2\n" +
+                    "  Linux: sudo apt-get install libsdl2-2.0-0 libsdl2-mixer-2.0-0\n" +
+                    "         or set -Djna.library.path=/path/to/libs\n" +
+                    "  macOS: brew install sdl2 sdl2_mixer\n" +
+                    "         Homebrew defaults are detected automatically from /opt/homebrew/lib and /usr/local/lib\n" +
                     "  Windows: Place SDL2.dll in project directory\n" +
                     "Original error: " + e.getMessage(), e);
             }
