@@ -93,7 +93,7 @@ Artifacts are produced under `target/`, including the plugin ZIP package.
 - Java target: `21`
 - Native binding layer: `JNA`
 - Plugin id: `dev.nuclr.plugin.core.quickviewer.music.sdl2`
-- Plugin version: `1.0.0`
+- Plugin version: `1.0.1`
 
 ## 🌐 Links
 
