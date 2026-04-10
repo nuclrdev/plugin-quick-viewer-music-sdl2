@@ -29,7 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
-import dev.nuclr.plugin.PluginPathResource;
+import dev.nuclr.platform.plugin.NuclrResourcePath;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import sdl2.AudioRingBuffer;
@@ -56,7 +56,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	public static SDLMixerAudio TrackerMusic;
 	private static AudioRingBuffer audioRingBuffer;
 
-	private PluginPathResource currentFile;
+	private NuclrResourcePath currentFile;
 	private Timer updateTimer;
 	private WaveformPanel waveformPanel;
 
@@ -344,7 +344,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	// ---- Public API ----
-	public boolean load(PluginPathResource item, AtomicBoolean cancelled) {
+	public boolean load(NuclrResourcePath item, AtomicBoolean cancelled) {
 		if (cancelled.get()) return false;
 
 		this.currentFile = item;

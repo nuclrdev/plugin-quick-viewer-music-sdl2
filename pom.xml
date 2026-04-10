@@ -21,8 +21,8 @@
 
 		<dependency>
 			<groupId>dev.nuclr</groupId>
-			<artifactId>plugins-sdk</artifactId>
-			<version>1.0.0</version>
+			<artifactId>platform-sdk</artifactId>
+			<version>2.0.3</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -91,7 +91,7 @@
 
 							<!-- Optional: if you *never* want the SDK bundled -->
 							<!--
-							<excludeArtifactIds>plugins-sdk</excludeArtifactIds> -->
+							<excludeArtifactIds>platform-sdk</excludeArtifactIds> -->
 
 							<!-- Keep names clean -->
 							<stripVersion>false</stripVersion>
