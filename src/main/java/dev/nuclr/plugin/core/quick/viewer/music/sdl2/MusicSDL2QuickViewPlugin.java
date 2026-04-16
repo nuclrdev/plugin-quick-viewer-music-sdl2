@@ -10,14 +10,16 @@ import dev.nuclr.platform.NuclrThemeScheme;
 import dev.nuclr.platform.plugin.NuclrMenuResource;
 import dev.nuclr.platform.plugin.NuclrPlugin;
 import dev.nuclr.platform.plugin.NuclrPluginContext;
+import dev.nuclr.platform.plugin.NuclrPluginRole;
 import dev.nuclr.platform.plugin.NuclrResourcePath;
 import sdl2.NativeLibExtractor;
 
-public class MusicSDL2QuickViewProvider implements NuclrPlugin {
+public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
 
 	private NuclrPluginContext context;
 	private MusicSDl2ViewPanel panel;
 	private volatile AtomicBoolean currentCancelled;
+	private NuclrResourcePath currentResource;
 
 	@Override
 	public JComponent panel() {
@@ -55,6 +57,7 @@ public class MusicSDL2QuickViewProvider implements NuclrPlugin {
 		if (currentCancelled != null) {
 			currentCancelled.set(true);
 		}
+		this.currentResource = resource;
 		this.currentCancelled = cancelled;
 		NativeLibExtractor.ensureExtracted();
 		panel();
@@ -155,5 +158,20 @@ public class MusicSDL2QuickViewProvider implements NuclrPlugin {
 
 	@Override
 	public void updateTheme(NuclrThemeScheme themeScheme) {
+	}
+
+	@Override
+	public NuclrPluginRole role() {
+		return NuclrPluginRole.QuickViewer;
+	}
+
+	@Override
+	public NuclrResourcePath getCurrentResource() {
+		return this.currentResource;
+	}
+
+	@Override
+	public String uuid() {
+		return id();
 	}
 }
