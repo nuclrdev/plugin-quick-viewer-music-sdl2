@@ -15,76 +15,69 @@ import javax.swing.Timer;
 import sdl2.AudioRingBuffer;
 
 /**
- * Oscilloscope-style waveform visualizer panel.
+ * Aurora-mirror waveform visualizer.
  * <p>
- * Draws a triggered PCM trace around the center line so the waveform looks
- * like a classic oscillogram rather than a scrolling envelope ribbon.
+ * Renders a symmetric (mirrored) oscilloscope trace filled with a slowly-shifting
+ * prismatic gradient — violet → blue → cyan — with a multi-pass neon glow on
+ * the wave edges and motion-trail ghost frames.
  */
 public class WaveformPanel extends JPanel {
 
-	// Background palette
-	private static final Color BG_TOP = new Color(0x11, 0x14, 0x1F);
-	private static final Color BG_BOTTOM = new Color(0x08, 0x0B, 0x12);
-	private static final Color GRID = new Color(0xB4, 0xC0, 0xD4, 18);
-	private static final Color CENTER_LINE = new Color(0xD8, 0xE1, 0xF0, 36);
-	private static final Color VIGNETTE = new Color(0, 0, 0, 70);
+	// ---- Background ----
+	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
+	private static final Color BG_BOTTOM = new Color(0x04, 0x05, 0x09);
 
-	// Oscilloscope trace colors
-	private static final Color TRACE_MAIN = new Color(0x9C, 0xFF, 0xE7, 220);
-	private static final Color TRACE_GLOW_A = new Color(0x6D, 0xE7, 0xFF, 95);
-	private static final Color TRACE_GLOW_B = new Color(0xB1, 0x8C, 0xFF, 65);
-	private static final Color TRACE_HIGH = new Color(0xFF, 0xA8, 0x66, 235);
-	private static final Color TRACE_LOW = new Color(0x7E, 0xA8, 0xFF, 235);
-	private static final float SEGMENT_THRESHOLD = 0.52f;
-	private static final Color[] TRAIL_COLORS = {
-		new Color(0x89, 0x78, 0xFF),
-		new Color(0x67, 0xA1, 0xFF),
-		new Color(0x63, 0xD1, 0xFF),
-		new Color(0x78, 0xF6, 0xE7)
-	};
-	private static final int TRAIL_FRAMES = 8;
-	private static final int TRAIL_MAX_ALPHA = 115;
+	// ---- Strokes (pre-allocated) ----
+	private static final BasicStroke GLOW1 = new BasicStroke(8f,   BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final BasicStroke GLOW2 = new BasicStroke(3.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final BasicStroke MAIN  = new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	private static final BasicStroke IDLE  = new BasicStroke(1f);
 
-	private static final BasicStroke GRID_STROKE = new BasicStroke(1f);
-	private static final BasicStroke CENTER_STROKE = new BasicStroke(1f);
-	private static final BasicStroke TRACE_GLOW_1 = new BasicStroke(5.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-	private static final BasicStroke TRACE_GLOW_2 = new BasicStroke(3.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-	private static final BasicStroke TRACE_MAIN_STROKE = new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+	// ---- Oscilloscope config ----
+	private static final int   OSC_POINTS         = 256;
+	private static final int   SNAPSHOT_SAMPLES   = 8192;
+	private static final int   OSC_WINDOW_SAMPLES = 2048;
+	private static final float TRACE_ATTACK       = 0.45f;
+	private static final float TRACE_DECAY        = 0.18f;
+	private static final float MIN_TRIGGER_SLOPE  = 0.003f;
+	private static final float TRIGGER_LEVEL      = 0.015f;
 
-	// Oscilloscope processing constants
-	private static final int OSC_POINTS = 512;
-	private static final int SNAPSHOT_SAMPLES = 8192;
-	private static final int OSC_WINDOW_SAMPLES = 2048;
-	private static final float TRACE_ATTACK = 0.48f;
-	private static final float TRACE_DECAY = 0.22f;
-	private static final float MIN_TRIGGER_SLOPE = 0.003f;
-	private static final float TRIGGER_LEVEL = 0.015f;
+	// ---- Trail ----
+	private static final int TRAIL_FRAMES    = 5;
+	private static final int TRAIL_MAX_ALPHA = 68;
 
-	// Audio data source
+	// ---- Color animation ----
+	// Full hue drift cycle over ~10 minutes at 60 fps — very subtle living shift
+	private static final float HUE_CYCLE = 36000f;
+
+	// ---- Audio ----
 	private AudioRingBuffer ringBuffer;
 
-	// Pre-allocated processing buffers
-	private final float[] snapshotBuf = new float[SNAPSHOT_SAMPLES];
-	private final float[] oscTarget = new float[OSC_POINTS];
-	private final float[] oscDisplay = new float[OSC_POINTS];
-	private final float[] traceX = new float[OSC_POINTS];
-	private final float[] traceY = new float[OSC_POINTS];
-	private final float[][] trail = new float[TRAIL_FRAMES][OSC_POINTS];
+	// ---- Processing buffers ----
+	private final float[]   snapshotBuf = new float[SNAPSHOT_SAMPLES];
+	private final float[]   oscTarget   = new float[OSC_POINTS];
+	private final float[]   oscDisplay  = new float[OSC_POINTS];
+	private final float[][] trail       = new float[TRAIL_FRAMES][OSC_POINTS];
 
-	// Reusable path
-	private final Path2D.Float tracePath = new Path2D.Float();
+	// ---- Paths ----
+	// Main paths for the current frame
+	private final Path2D.Float topPath  = new Path2D.Float();
+	private final Path2D.Float botPath  = new Path2D.Float();
+	private final Path2D.Float fillPath = new Path2D.Float();
+	// Auxiliary paths reused for trail rendering (avoids overwriting main paths)
+	private final Path2D.Float auxTop   = new Path2D.Float();
+	private final Path2D.Float auxBot   = new Path2D.Float();
 
-	// Cached paints
+	// ---- Cached background gradient ----
 	private LinearGradientPaint bgPaint;
-	private int cachedWidth = -1;
-	private int cachedHeight = -1;
+	private int cachedW = -1, cachedH = -1;
 
-	// Dynamic state
-	private int trailWriteIndex;
-	private int trailCount;
-	private float autoGain = 1.0f;
+	// ---- State ----
+	private int   trailWrite = 0;
+	private int   trailCount = 0;
+	private float autoGain   = 1.0f;
+	private int   frameCount = 0;
 
-	// Animation timer
 	private final Timer animTimer;
 
 	public WaveformPanel() {
@@ -106,95 +99,223 @@ public class WaveformPanel extends JPanel {
 		if (!animTimer.isRunning()) animTimer.start();
 	}
 
+	// ---- Color helpers ----
+
+	/**
+	 * Returns [left, mid, right] aurora colors for a 3-stop horizontal gradient.
+	 * The hue slowly drifts from violet through blue to teal over one full cycle,
+	 * giving the visualization a living, iridescent quality.
+	 */
+	private Color[] auroraColors(float alpha01) {
+		float phase = (frameCount % (int) HUE_CYCLE) / HUE_CYCLE;
+		// violet (0.76) drifts to teal (0.48) over the full cycle
+		float base = 0.76f - phase * 0.28f;
+		int   a    = clampAlpha(alpha01);
+		return new Color[]{
+			hsba(base,         0.88f, 1.00f, a),  // violet / indigo
+			hsba(base - 0.13f, 0.80f, 1.00f, a),  // electric blue
+			hsba(base - 0.26f, 0.88f, 1.00f, a),  // cyan / teal
+		};
+	}
+
+	private static Color hsba(float h, float s, float b, int a) {
+		h = ((h % 1f) + 1f) % 1f;
+		Color c = Color.getHSBColor(h, s, b);
+		return new Color(c.getRed(), c.getGreen(), c.getBlue(), a);
+	}
+
+	/** Horizontal 3-stop aurora gradient spanning the full panel width. */
+	private LinearGradientPaint hGrad(int w, float alpha01) {
+		Color[] c = auroraColors(alpha01);
+		return new LinearGradientPaint(0, 0, w, 0, new float[]{0f, 0.5f, 1f}, c);
+	}
+
+	// ---- Paint ----
+
 	@Override
 	protected void paintComponent(Graphics g) {
 		int w = getWidth();
 		int h = getHeight();
+		if (w < 10 || h < 10) return;
+		frameCount++;
 
 		Graphics2D g2 = (Graphics2D) g.create();
 		try {
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,   RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-			if (w < 10 || h < 10) return;
 
+			// 1 — Background
+			updateBg(w, h);
+			g2.setPaint(bgPaint);
+			g2.fillRect(0, 0, w, h);
+
+			// 2 — Audio snapshot
 			boolean hasAudio = false;
 			if (ringBuffer != null) {
 				int samples = ringBuffer.snapshot(snapshotBuf, SNAPSHOT_SAMPLES);
 				hasAudio = samples >= OSC_POINTS;
 				if (hasAudio) {
-					extractOscilloscopeFrame(samples);
+					extractOscFrame(samples);
 					smoothTrace();
-					pushTrailFrame();
+					pushTrail();
 				}
 			}
 
-			updateBackgroundPaint(w, h);
-			g2.setPaint(bgPaint);
-			g2.fillRect(0, 0, w, h);
-			drawGrid(g2, w, h);
-			drawCenterLine(g2, w, h);
-			if (!hasAudio) return;
+			if (!hasAudio) {
+				drawIdle(g2, w, h);
+				return;
+			}
 
+			// 3 — Trail ghost frames (drawn first, behind current frame)
 			drawTrails(g2, w, h);
-			buildTracePath(w, h, oscDisplay);
 
-			g2.setPaint(new GradientPaint(0, 0, TRACE_GLOW_A, w, 0, TRACE_GLOW_B));
-			g2.setStroke(TRACE_GLOW_1);
-			g2.draw(tracePath);
-			g2.setStroke(TRACE_GLOW_2);
-			g2.draw(tracePath);
+			// 4 — Build current-frame paths
+			buildLinePaths(topPath, botPath, w, h, oscDisplay);
+			buildFillPath(fillPath, w, h, oscDisplay);
 
-			drawSegmentedMainTrace(g2);
+			// 5 — Filled wave body (semi-transparent aurora wash)
+			g2.setPaint(hGrad(w, 0.28f));
+			g2.fill(fillPath);
 
-			g2.setColor(VIGNETTE);
-			g2.fillRect(0, 0, w, 2);
-			g2.fillRect(0, h - 2, w, 2);
+			// 6 — Glow pass 1: wide, very soft outer halo
+			g2.setPaint(hGrad(w, 0.16f));
+			g2.setStroke(GLOW1);
+			g2.draw(topPath);
+			g2.draw(botPath);
+
+			// 7 — Glow pass 2: tighter inner glow
+			g2.setPaint(hGrad(w, 0.40f));
+			g2.setStroke(GLOW2);
+			g2.draw(topPath);
+			g2.draw(botPath);
+
+			// 8 — Main bright edge lines
+			g2.setPaint(hGrad(w, 0.88f));
+			g2.setStroke(MAIN);
+			g2.draw(topPath);
+			g2.draw(botPath);
+
+			// 9 — Left / right vignette
+			drawVignette(g2, w, h);
+
 		} finally {
 			g2.dispose();
 		}
 	}
 
-	private void extractOscilloscopeFrame(int samples) {
-		int trigger = findTriggerIndex(snapshotBuf, samples);
-		int window = Math.min(OSC_WINDOW_SAMPLES, samples - trigger - 1);
+	// ---- Idle state ----
+
+	private void drawIdle(Graphics2D g2, int w, int h) {
+		float pulse = 0.5f + 0.5f * (float) Math.sin(frameCount * 0.04);
+		Color[] cols = auroraColors(0.35f * pulse);
+		g2.setColor(cols[1]);
+		g2.setStroke(IDLE);
+		g2.drawLine(0, h / 2, w, h / 2);
+	}
+
+	// ---- Path builders ----
+
+	private void buildLinePaths(Path2D.Float top, Path2D.Float bot,
+	                            int w, int h, float[] data) {
+		float cy  = h * 0.5f;
+		float dx  = w / (OSC_POINTS - 1f);
+		float amp = h * 0.42f * autoGain;
+		top.reset();
+		bot.reset();
+		top.moveTo(0, cy - data[0] * amp);
+		bot.moveTo(0, cy + data[0] * amp);
+		for (int i = 1; i < OSC_POINTS; i++) {
+			float x = i * dx;
+			top.lineTo(x, cy - data[i] * amp);
+			bot.lineTo(x, cy + data[i] * amp);
+		}
+	}
+
+	/** Closed polygon covering the area between the top and mirrored bottom traces. */
+	private void buildFillPath(Path2D.Float fill, int w, int h, float[] data) {
+		float cy  = h * 0.5f;
+		float dx  = w / (OSC_POINTS - 1f);
+		float amp = h * 0.42f * autoGain;
+		fill.reset();
+		fill.moveTo(0, cy - data[0] * amp);
+		for (int i = 1; i < OSC_POINTS; i++) {
+			fill.lineTo(i * dx, cy - data[i] * amp);
+		}
+		// Return along the bottom (mirrored) edge right-to-left to close the shape
+		for (int i = OSC_POINTS - 1; i >= 0; i--) {
+			fill.lineTo(i * dx, cy + data[i] * amp);
+		}
+		fill.closePath();
+	}
+
+	// ---- Trail rendering ----
+
+	private void drawTrails(Graphics2D g2, int w, int h) {
+		for (int age = trailCount - 1; age >= 1; age--) {
+			int idx = trailWrite - age;
+			if (idx < 0) idx += TRAIL_FRAMES;
+			float norm  = 1f - (float) age / trailCount;
+			int   alpha = (int)(TRAIL_MAX_ALPHA * norm * norm);
+			if (alpha < 4) continue;
+
+			buildLinePaths(auxTop, auxBot, w, h, trail[idx]);
+			Color[] c  = auroraColors(alpha / 255f);
+			LinearGradientPaint tp = new LinearGradientPaint(
+				0, 0, w, 0, new float[]{0f, 0.5f, 1f}, c);
+			g2.setPaint(tp);
+			float sw = 0.6f + norm;
+			g2.setStroke(new BasicStroke(sw, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			g2.draw(auxTop);
+			g2.draw(auxBot);
+		}
+	}
+
+	// ---- Vignette ----
+
+	private static void drawVignette(Graphics2D g2, int w, int h) {
+		int vw = Math.min(32, w / 6);
+		g2.setPaint(new GradientPaint(0, 0, new Color(0, 0, 0, 100), vw, 0, new Color(0, 0, 0, 0)));
+		g2.fillRect(0, 0, vw, h);
+		g2.setPaint(new GradientPaint(w - vw, 0, new Color(0, 0, 0, 0), w, 0, new Color(0, 0, 0, 100)));
+		g2.fillRect(w - vw, 0, vw, h);
+	}
+
+	// ---- Audio processing ----
+
+	private void extractOscFrame(int samples) {
+		int trigger = findTrigger(snapshotBuf, samples);
+		int window  = Math.min(OSC_WINDOW_SAMPLES, samples - trigger - 1);
 		if (window < OSC_POINTS) {
-			window = Math.min(samples - 1, OSC_POINTS);
+			window  = Math.min(samples - 1, OSC_POINTS);
 			trigger = Math.max(0, samples - window - 1);
 		}
-
 		float step = (window - 1f) / (OSC_POINTS - 1f);
 		float peak = 0f;
 		for (int i = 0; i < OSC_POINTS; i++) {
 			float pos = trigger + i * step;
-			int i0 = (int) pos;
-			int i1 = Math.min(i0 + 1, samples - 1);
-			float t = pos - i0;
-			float v = snapshotBuf[i0] + (snapshotBuf[i1] - snapshotBuf[i0]) * t;
+			int   i0  = (int) pos;
+			int   i1  = Math.min(i0 + 1, samples - 1);
+			float v   = snapshotBuf[i0] + (snapshotBuf[i1] - snapshotBuf[i0]) * (pos - i0);
 			oscTarget[i] = v;
 			float av = Math.abs(v);
 			if (av > peak) peak = av;
 		}
-
-		float targetGain = 0.85f / Math.max(0.08f, peak);
-		targetGain = clamp(targetGain, 0.8f, 2.8f);
-		autoGain += (targetGain - autoGain) * 0.10f;
+		float tg = 0.85f / Math.max(0.08f, peak);
+		autoGain += (clamp(tg, 0.8f, 2.8f) - autoGain) * 0.10f;
 	}
 
-	private static int findTriggerIndex(float[] src, int len) {
-		int start = Math.max(1, len / 4);
-		int end = Math.max(start + 2, len - OSC_WINDOW_SAMPLES - 2);
-		int best = start;
+	private static int findTrigger(float[] src, int len) {
+		int   start     = Math.max(1, len / 4);
+		int   end       = Math.max(start + 2, len - OSC_WINDOW_SAMPLES - 2);
+		int   best      = start;
 		float bestScore = Float.MAX_VALUE;
-
 		for (int i = start; i < end; i++) {
-			float a = src[i - 1];
-			float b = src[i];
-			float slope = b - a;
-			if (a <= 0f && b > 0f && slope > MIN_TRIGGER_SLOPE) {
+			float a = src[i - 1], b = src[i];
+			if (a <= 0f && b > 0f && (b - a) > MIN_TRIGGER_SLOPE) {
 				float score = Math.abs(b);
-				if (score < bestScore && Math.abs(b) < TRIGGER_LEVEL) {
+				if (score < bestScore && score < TRIGGER_LEVEL) {
 					bestScore = score;
-					best = i;
+					best      = i;
 				}
 			}
 		}
@@ -203,100 +324,32 @@ public class WaveformPanel extends JPanel {
 
 	private void smoothTrace() {
 		for (int i = 0; i < OSC_POINTS; i++) {
-			float target = oscTarget[i];
-			float current = oscDisplay[i];
-			float alpha = Math.abs(target) > Math.abs(current) ? TRACE_ATTACK : TRACE_DECAY;
-			oscDisplay[i] += (target - current) * alpha;
+			float t = oscTarget[i], c = oscDisplay[i];
+			float a = Math.abs(t) > Math.abs(c) ? TRACE_ATTACK : TRACE_DECAY;
+			oscDisplay[i] = c + (t - c) * a;
 		}
 	}
 
-	private void pushTrailFrame() {
-		float[] dst = trail[trailWriteIndex];
-		System.arraycopy(oscDisplay, 0, dst, 0, OSC_POINTS);
-		trailWriteIndex = (trailWriteIndex + 1) % TRAIL_FRAMES;
-		if (trailCount < TRAIL_FRAMES) {
-			trailCount++;
-		}
+	private void pushTrail() {
+		System.arraycopy(oscDisplay, 0, trail[trailWrite], 0, OSC_POINTS);
+		trailWrite = (trailWrite + 1) % TRAIL_FRAMES;
+		if (trailCount < TRAIL_FRAMES) trailCount++;
 	}
 
-	private void drawTrails(Graphics2D g2, int w, int h) {
-		for (int age = trailCount - 1; age >= 0; age--) {
-			int idx = trailWriteIndex - 1 - age;
-			if (idx < 0) idx += TRAIL_FRAMES;
-			float[] frame = trail[idx];
-			float norm = (age + 1f) / (trailCount + 1f);
-			int alpha = (int) (TRAIL_MAX_ALPHA * norm * norm);
-			Color c = TRAIL_COLORS[age % TRAIL_COLORS.length];
-			g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
-			g2.setStroke(new BasicStroke(1.1f + norm, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-			buildTracePath(w, h, frame);
-			g2.draw(tracePath);
-		}
-	}
-
-	private void drawSegmentedMainTrace(Graphics2D g2) {
-		g2.setStroke(TRACE_MAIN_STROKE);
-		for (int i = 0; i < OSC_POINTS - 1; i++) {
-			float a = oscDisplay[i];
-			float b = oscDisplay[i + 1];
-			float mid = (a + b) * 0.5f;
-			if (mid >= SEGMENT_THRESHOLD) {
-				g2.setColor(TRACE_HIGH);
-			} else if (mid <= -SEGMENT_THRESHOLD) {
-				g2.setColor(TRACE_LOW);
-			} else {
-				g2.setColor(TRACE_MAIN);
-			}
-			g2.drawLine(Math.round(traceX[i]), Math.round(traceY[i]), Math.round(traceX[i + 1]), Math.round(traceY[i + 1]));
-		}
-	}
-
-	private void buildTracePath(int w, int h, float[] data) {
-		tracePath.reset();
-		float cy = h * 0.5f;
-		float dx = w / (OSC_POINTS - 1f);
-		float amp = h * 0.36f * autoGain;
-
-		traceX[0] = 0f;
-		traceY[0] = cy - data[0] * amp;
-		tracePath.moveTo(traceX[0], traceY[0]);
-		for (int i = 1; i < OSC_POINTS; i++) {
-			traceX[i] = i * dx;
-			traceY[i] = cy - data[i] * amp;
-			tracePath.lineTo(traceX[i], traceY[i]);
-		}
-	}
-
-	private void updateBackgroundPaint(int w, int h) {
-		if (w == cachedWidth && h == cachedHeight) {
-			return;
-		}
-		cachedWidth = w;
-		cachedHeight = h;
-		bgPaint = new LinearGradientPaint(0, 0, 0, h, new float[]{0f, 1f}, new Color[]{BG_TOP, BG_BOTTOM});
-	}
-
-	private static void drawGrid(Graphics2D g2, int w, int h) {
-		g2.setStroke(GRID_STROKE);
-		g2.setColor(GRID);
-		for (int i = 1; i < 8; i++) {
-			int x = i * w / 8;
-			g2.drawLine(x, 0, x, h);
-		}
-		for (int i = 1; i < 6; i++) {
-			int y = i * h / 6;
-			g2.drawLine(0, y, w, y);
-		}
-	}
-
-	private static void drawCenterLine(Graphics2D g2, int w, int h) {
-		g2.setStroke(CENTER_STROKE);
-		g2.setColor(CENTER_LINE);
-		g2.drawLine(0, h / 2, w, h / 2);
+	private void updateBg(int w, int h) {
+		if (w == cachedW && h == cachedH) return;
+		cachedW = w;
+		cachedH = h;
+		bgPaint = new LinearGradientPaint(0, 0, 0, h,
+			new float[]{0f, 1f}, new Color[]{BG_TOP, BG_BOTTOM});
 	}
 
 	private static float clamp(float v, float min, float max) {
 		return Math.max(min, Math.min(max, v));
+	}
+
+	private static int clampAlpha(float a01) {
+		return Math.max(0, Math.min(255, (int)(a01 * 255)));
 	}
 
 }
