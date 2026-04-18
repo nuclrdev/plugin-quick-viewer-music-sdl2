@@ -15,6 +15,11 @@ import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,6 +62,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	private static AudioRingBuffer audioRingBuffer;
 
 	private NuclrResourcePath currentFile;
+	private Path stagedFile;
 	private Timer updateTimer;
 	private WaveformPanel waveformPanel;
 
@@ -268,7 +274,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 			TrackerMusic.pauseMusic();
 		} else if (currentFile != null) {
 			try {
-				TrackerMusic.loadMusic(currentFile.getPath().toFile());
+				var file = ensureLoadableFile(currentFile, null);
+				TrackerMusic.loadMusic(file.toFile());
 				TrackerMusic.playMusic(-1);
 			} catch (Exception e) {
 				log.error("Failed to restart music: {}", e.getMessage(), e);
@@ -348,12 +355,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		if (cancelled.get()) return false;
 
 		this.currentFile = item;
-		if (currentFile.getPath() == null) {
-			trackNameLabel.setText("Unsupported item");
-			trackInfoLabel.setText("This viewer requires a filesystem path");
-			return false;
-		}
-		var file = currentFile.getPath().toFile();
+		Path file = null;
 
 		try {
 
@@ -368,15 +370,16 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 			if (cancelled.get()) return false;
 
+			file = ensureLoadableFile(currentFile, cancelled);
 			audioRingBuffer.clear();
-			TrackerMusic.loadMusic(file);
+			TrackerMusic.loadMusic(file.toFile());
 			if (cancelled.get()) {
 				TrackerMusic.stopMusic();
 				return false;
 			}
 			TrackerMusic.playMusic(-1);
 
-			String name = file.getName();
+			String name = file.getFileName() != null ? file.getFileName().toString() : file.toString();
 			String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1).toUpperCase() : "";
 			trackNameLabel.setText(name);
 			trackInfoLabel.setText(ext + " audio");
@@ -390,7 +393,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			updatePlayPauseIcon();
 
 		} catch (Exception e) {
-			log.error("Failed to read music file: {}", file.getAbsolutePath(), e);
+			log.error("Failed to read music file: {}", file != null ? file.toAbsolutePath() : currentFile, e);
 			trackNameLabel.setText("Error loading file");
 			trackInfoLabel.setText(e.getMessage());
 			return false;
@@ -514,12 +517,74 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 	public void clear() {
 		stopMusic();
+		deleteStagedFile();
 		currentFile = null;
 		trackNameLabel.setText("No track loaded");
 		trackInfoLabel.setText(" ");
 		progressBar.setProgress(0);
 		currentTimeLabel.setText("0:00");
 		totalTimeLabel.setText("0:00");		
+	}
+
+	private Path ensureLoadableFile(NuclrResourcePath item, AtomicBoolean cancelled) throws Exception {
+		Path path = item != null ? item.getPath() : null;
+		if (path != null) {
+			try {
+				path.toFile();
+				deleteStagedFile();
+				return path;
+			} catch (UnsupportedOperationException | IllegalArgumentException ignored) {
+				// Fall back to a temp file for non-default filesystems such as zipfs.
+			}
+		}
+
+		deleteStagedFile();
+		String suffix = extensionSuffix(item);
+		Path tempFile = Files.createTempFile("nuclr-music-preview-", suffix);
+		try {
+			try (InputStream input = item.openStream(); OutputStream output = Files.newOutputStream(tempFile)) {
+				copyWithCancellation(input, output, cancelled);
+			}
+			stagedFile = tempFile;
+			return tempFile;
+		} catch (Exception e) {
+			Files.deleteIfExists(tempFile);
+			throw e;
+		}
+	}
+
+	private void copyWithCancellation(InputStream input, OutputStream output, AtomicBoolean cancelled) throws Exception {
+		byte[] buffer = new byte[8192];
+		int read;
+		while ((read = input.read(buffer)) >= 0) {
+			if (cancelled != null && cancelled.get()) {
+				throw new InterruptedException("Music load cancelled");
+			}
+			if (read > 0) {
+				output.write(buffer, 0, read);
+			}
+		}
+	}
+
+	private String extensionSuffix(NuclrResourcePath item) {
+		String extension = item != null ? item.getExtension() : "";
+		if (extension == null || extension.isBlank()) {
+			return ".tmp";
+		}
+		return extension.startsWith(".") ? extension : "." + extension;
+	}
+
+	private void deleteStagedFile() {
+		if (stagedFile == null) {
+			return;
+		}
+		try {
+			Files.deleteIfExists(stagedFile);
+		} catch (IOException e) {
+			log.debug("Failed to delete staged music file {}", stagedFile, e);
+		} finally {
+			stagedFile = null;
+		}
 	}
 
 
