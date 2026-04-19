@@ -168,9 +168,7 @@ public class SDLMixerAudio {
      */
     public void loadMusic(File file) {
         if (currentMusic != null) {
-            stopMusic();
-            SDLMixer.INSTANCE.Mix_FreeMusic(currentMusic);
-            currentMusic = null;
+            unloadMusic();
         }
         
         currentFile = file.getAbsolutePath();
@@ -224,6 +222,32 @@ public class SDLMixerAudio {
      */
     public void stopMusic() {
         SDLMixer.INSTANCE.Mix_HaltMusic();
+    }
+
+    /**
+     * Release the currently loaded music object so any underlying file handle
+     * can be closed before the source file is replaced or deleted.
+     */
+    public synchronized void unloadMusic() {
+        if (currentMusic == null) {
+            currentFile = null;
+            return;
+        }
+
+        stopMusic();
+
+        // SDL2_mixer can take a brief moment to tear down the playback state on
+        // Windows before the file handle is actually released.
+        for (int attempt = 0; attempt < 10; attempt++) {
+            if (!isPlaying() && !isPaused()) {
+                break;
+            }
+            SDL2.INSTANCE.SDL_Delay(10);
+        }
+
+        SDLMixer.INSTANCE.Mix_FreeMusic(currentMusic);
+        currentMusic = null;
+        currentFile = null;
     }
     
     /**
@@ -367,11 +391,7 @@ public class SDLMixerAudio {
     }
 
     public void dispose() {
-        if (currentMusic != null) {
-            stopMusic();
-            SDLMixer.INSTANCE.Mix_FreeMusic(currentMusic);
-            currentMusic = null;
-        }
+        unloadMusic();
         
         // Note: We don't close SDL_Mixer here as other instances might be using it
         // In a real application, you might want to reference count or use a singleton

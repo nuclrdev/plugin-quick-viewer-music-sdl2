@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.FileSystemException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -360,7 +361,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		try {
 
 			if (TrackerMusic != null) {
-				TrackerMusic.stopMusic();
+				TrackerMusic.unloadMusic();
 			} else {
 				TrackerMusic = new SDLMixerAudio();
 				audioRingBuffer = new AudioRingBuffer(44100); // ~1 second at 44.1kHz
@@ -516,7 +517,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	public void clear() {
-		stopMusic();
+		releaseLoadedMusic();
 		deleteStagedFile();
 		currentFile = null;
 		trackNameLabel.setText("No track loaded");
@@ -524,6 +525,16 @@ public class MusicSDl2ViewPanel extends JPanel {
 		progressBar.setProgress(0);
 		currentTimeLabel.setText("0:00");
 		totalTimeLabel.setText("0:00");		
+	}
+
+	private void releaseLoadedMusic() {
+		if (TrackerMusic != null) {
+			TrackerMusic.dispose();
+		}
+		if (audioRingBuffer != null) {
+			audioRingBuffer.clear();
+		}
+		updatePlayPauseIcon();
 	}
 
 	private Path ensureLoadableFile(NuclrResourcePath item, AtomicBoolean cancelled) throws Exception {
@@ -578,13 +589,37 @@ public class MusicSDl2ViewPanel extends JPanel {
 		if (stagedFile == null) {
 			return;
 		}
+		Path fileToDelete = stagedFile;
 		try {
-			Files.deleteIfExists(stagedFile);
+			deleteWithRetry(fileToDelete);
 		} catch (IOException e) {
-			log.debug("Failed to delete staged music file {}", stagedFile, e);
+			log.debug("Failed to delete staged music file {}", fileToDelete, e);
 		} finally {
 			stagedFile = null;
 		}
+	}
+
+	private void deleteWithRetry(Path fileToDelete) throws IOException {
+		IOException lastFailure = null;
+		for (int attempt = 0; attempt < 5; attempt++) {
+			try {
+				Files.deleteIfExists(fileToDelete);
+				return;
+			} catch (FileSystemException e) {
+				lastFailure = e;
+				if (attempt == 4) {
+					break;
+				}
+				try {
+					Thread.sleep(25L * (attempt + 1));
+				} catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					e.addSuppressed(interrupted);
+					throw e;
+				}
+			}
+		}
+		throw lastFailure != null ? lastFailure : new IOException("Failed to delete staged music file " + fileToDelete);
 	}
 
 
