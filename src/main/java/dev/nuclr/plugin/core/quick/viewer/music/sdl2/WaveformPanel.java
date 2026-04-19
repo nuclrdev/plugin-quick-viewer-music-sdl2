@@ -106,6 +106,7 @@ public class WaveformPanel extends JPanel {
 	private int   trailWrite = 0;
 	private int   trailCount = 0;
 	private float autoGain   = 1.0f;
+	private float signalLevel = 0.0f;
 	private int   frameCount = 0;
 	private boolean trackerBackdropEnabled = false;
 	private double playbackPositionSeconds = 0.0d;
@@ -223,6 +224,7 @@ public class WaveformPanel extends JPanel {
 			}
 
 			if (!hasAudio) {
+				signalLevel += (0f - signalLevel) * 0.12f;
 				drawIdle(g2, w, h);
 				return;
 			}
@@ -448,13 +450,14 @@ public class WaveformPanel extends JPanel {
 	}
 
 	private void drawTrackerOverlays(Graphics2D g2, int w, int h, int topInset, int availableHeight, int highlightY, int rowHeight) {
+		float energy = trackerEnergy();
 		int glowHeight = Math.max(36, availableHeight / 3);
 		g2.setPaint(new LinearGradientPaint(
 			0, topInset, w, topInset + glowHeight,
 			new float[]{0f, 0.4f, 1f},
 			new Color[]{
 				new Color(72, 196, 255, 0),
-				new Color(72, 196, 255, 26),
+				new Color(72, 196, 255, 18 + Math.round(18 * energy)),
 				new Color(218, 96, 188, 0)
 			}));
 		g2.fillRect(0, topInset, w, glowHeight);
@@ -465,7 +468,7 @@ public class WaveformPanel extends JPanel {
 			new float[]{0f, 0.5f, 1f},
 			new Color[]{
 				new Color(0, 0, 0, 0),
-				new Color(126, 224, 255, 22),
+				new Color(126, 224, 255, 14 + Math.round(20 * energy)),
 				new Color(0, 0, 0, 0)
 			}));
 		g2.fillRect(Math.max(0, sweepX - 80), topInset, 160, availableHeight + rowHeight);
@@ -480,8 +483,8 @@ public class WaveformPanel extends JPanel {
 			new float[]{0f, 0.3f, 0.65f, 1f},
 			new Color[]{
 				new Color(126, 224, 255, 10),
-				new Color(126, 224, 255, 40),
-				new Color(232, 114, 193, 34),
+				new Color(126, 224, 255, 30 + Math.round(18 * energy)),
+				new Color(232, 114, 193, 22 + Math.round(20 * energy)),
 				new Color(255, 208, 128, 10)
 			}));
 		g2.fillRoundRect(14, highlightY, Math.max(0, w - 28), rowHeight, rowHeight, rowHeight);
@@ -490,26 +493,30 @@ public class WaveformPanel extends JPanel {
 	}
 
 	private LinearGradientPaint channelPaint(int column, int startX, int endX) {
-		float phase = (float) (0.5 + 0.5 * Math.sin(frameCount * 0.024 + column * 0.8));
+		float energy = trackerEnergy();
+		float phase = (float) (0.5 + 0.5 * Math.sin(frameCount * (0.016 + energy * 0.020) + column * 0.8));
 		float leftHue = TRACKER_CHANNEL_HUES[Math.floorMod(column, TRACKER_CHANNEL_HUES.length)];
 		float rightHue = TRACKER_CHANNEL_HUES[Math.floorMod(column + 1, TRACKER_CHANNEL_HUES.length)];
 		return new LinearGradientPaint(
 			startX, 0, endX, 0,
 			new float[]{0f, 0.5f, 1f},
 			new Color[]{
-				hsba(leftHue, 0.58f, 0.82f + phase * 0.10f, 14),
-				hsba(leftHue, 0.72f, 0.96f, 18),
-				hsba(rightHue, 0.48f, 0.80f + phase * 0.08f, 10)
+				hsba(leftHue, 0.58f + energy * 0.08f, 0.78f + phase * 0.08f + energy * 0.06f, 12 + Math.round(8 * energy)),
+				hsba(leftHue, 0.72f, Math.min(1.0f, 0.88f + energy * 0.12f), 16 + Math.round(12 * energy)),
+				hsba(rightHue, 0.48f + energy * 0.05f, 0.76f + phase * 0.06f + energy * 0.06f, 8 + Math.round(8 * energy))
 			});
 	}
 
 	private Color channelTextColor(int column, float saturation, float brightness, int alpha) {
 		float hue = TRACKER_CHANNEL_HUES[Math.floorMod(column, TRACKER_CHANNEL_HUES.length)];
-		float pulse = (float) (0.88 + 0.12 * Math.sin(frameCount * 0.032 + column * 0.75));
-		return hsba(hue, saturation, Math.min(1.0f, brightness * pulse), alpha);
+		float energy = trackerEnergy();
+		float pulse = (float) (0.86 + 0.10 * Math.sin(frameCount * (0.024 + energy * 0.024) + column * 0.75));
+		return hsba(hue, saturation + energy * 0.08f, Math.min(1.0f, brightness * pulse + energy * 0.12f),
+			Math.min(255, alpha + Math.round(24 * energy)));
 	}
 
 	private void drawCrtPass(Graphics2D g2, int w, int h, int topInset, int drawHeight) {
+		float energy = trackerEnergy();
 		int bottom = Math.min(h, topInset + drawHeight);
 
 		for (int y = topInset; y < bottom; y += 2) {
@@ -523,11 +530,14 @@ public class WaveformPanel extends JPanel {
 		}
 
 		int noiseSeed = frameCount * 97;
-		for (int i = 0; i < 36; i++) {
+		int noiseBursts = 22 + Math.round(30 * energy);
+		for (int i = 0; i < noiseBursts; i++) {
 			int x = Math.floorMod(noiseSeed + i * 73, Math.max(1, w));
 			int y = topInset + Math.floorMod(noiseSeed * 3 + i * 41, Math.max(1, drawHeight));
 			int noiseWidth = 2 + (i % 3);
-			g2.setColor((i & 1) == 0 ? CRT_NOISE : new Color(255, 184, 102, 9));
+			g2.setColor((i & 1) == 0
+				? new Color(CRT_NOISE.getRed(), CRT_NOISE.getGreen(), CRT_NOISE.getBlue(), 6 + Math.round(10 * energy))
+				: new Color(255, 184, 102, 6 + Math.round(8 * energy)));
 			g2.fillRect(x, y, noiseWidth, 1);
 		}
 	}
@@ -552,6 +562,8 @@ public class WaveformPanel extends JPanel {
 			float av = Math.abs(v);
 			if (av > peak) peak = av;
 		}
+		float normalizedPeak = clamp((peak - 0.02f) / 0.40f, 0f, 1f);
+		signalLevel += (normalizedPeak - signalLevel) * 0.16f;
 		float tg = 0.85f / Math.max(0.08f, peak);
 		autoGain += (clamp(tg, 0.8f, 2.8f) - autoGain) * 0.10f;
 	}
@@ -594,6 +606,10 @@ public class WaveformPanel extends JPanel {
 		cachedH = h;
 		bgPaint = new LinearGradientPaint(0, 0, 0, h,
 			new float[]{0f, 1f}, new Color[]{BG_TOP, BG_BOTTOM});
+	}
+
+	private float trackerEnergy() {
+		return clamp(signalLevel, 0f, 1f);
 	}
 
 	private static float clamp(float v, float min, float max) {
