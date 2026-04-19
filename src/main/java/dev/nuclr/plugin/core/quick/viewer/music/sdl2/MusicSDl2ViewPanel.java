@@ -58,6 +58,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	public static final Set<String> allowedExtensions = Set.of(
 			"wav", "flac", "aac", "voc", "aiff", "mid",
 			"ogg", "mp3", "xm", "mod", "s3m", "it", "669");
+	private static final Set<String> moduleExtensions = Set.of("xm", "mod", "s3m", "it", "669");
 
 	public static SDLMixerAudio TrackerMusic;
 	private static AudioRingBuffer audioRingBuffer;
@@ -331,6 +332,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 		double pos = TrackerMusic.getMusicPosition();
 		double dur = TrackerMusic.getMusicDuration();
+		waveformPanel.setPlaybackPositionSeconds(pos >= 0 ? pos : 0);
 
 		if (pos >= 0 && dur > 0) {
 			progressBar.setProgress(pos / dur);
@@ -381,12 +383,15 @@ public class MusicSDl2ViewPanel extends JPanel {
 			TrackerMusic.playMusic(-1);
 
 			String name = file.getFileName() != null ? file.getFileName().toString() : file.toString();
-			String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1).toUpperCase() : "";
+			String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1) : "";
+			String extUpper = ext.toUpperCase();
 			trackNameLabel.setText(name);
-			trackInfoLabel.setText(ext + " audio");
+			trackInfoLabel.setText(extUpper + " audio");
 			progressBar.setProgress(0);
 			currentTimeLabel.setText("0:00");
 			totalTimeLabel.setText("0:00");
+			waveformPanel.setPlaybackPositionSeconds(0);
+			updateTrackerBackdrop(name, ext);
 
 			float vol = TrackerMusic.getVolume();
 			volumeSlider.setValue(Math.round(vol * 100));
@@ -397,6 +402,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			log.error("Failed to read music file: {}", file != null ? file.toAbsolutePath() : currentFile, e);
 			trackNameLabel.setText("Error loading file");
 			trackInfoLabel.setText(e.getMessage());
+			waveformPanel.clearTrackerBackdrop();
 			return false;
 		}
 		
@@ -520,6 +526,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		releaseLoadedMusic();
 		deleteStagedFile();
 		currentFile = null;
+		waveformPanel.clearTrackerBackdrop();
 		trackNameLabel.setText("No track loaded");
 		trackInfoLabel.setText(" ");
 		progressBar.setProgress(0);
@@ -620,6 +627,14 @@ public class MusicSDl2ViewPanel extends JPanel {
 			}
 		}
 		throw lastFailure != null ? lastFailure : new IOException("Failed to delete staged music file " + fileToDelete);
+	}
+
+	private void updateTrackerBackdrop(String name, String extension) {
+		if (extension != null && moduleExtensions.contains(extension.toLowerCase())) {
+			waveformPanel.setTrackerBackdrop(name + ":" + extension.toLowerCase());
+		} else {
+			waveformPanel.clearTrackerBackdrop();
+		}
 	}
 
 

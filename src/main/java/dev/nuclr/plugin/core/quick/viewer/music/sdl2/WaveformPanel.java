@@ -2,12 +2,15 @@ package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
+import java.util.Random;
 
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -46,6 +49,28 @@ public class WaveformPanel extends JPanel {
 	private static final int TRAIL_FRAMES    = 5;
 	private static final int TRAIL_MAX_ALPHA = 68;
 
+	// ---- Fake tracker backdrop ----
+	private static final int TRACKER_ROWS      = 96;
+	private static final int TRACKER_COLUMNS   = 8;
+	private static final double TRACKER_SPEED  = 6.0d;
+	private static final String[] NOTE_POOL    = {
+		"C-4", "D#4", "F-4", "G-4", "A-4", "C-5", "C-3", "E-4", "G#4", "A#3"
+	};
+	private static final String[] EFFECT_POOL  = {
+		"01F", "A10", "40F", "E01", "E81", "C09", "609", "303", "304", "307"
+	};
+	private static final Color TRACKER_GRID    = new Color(146, 205, 255, 18);
+	private static final Color TRACKER_GUTTER  = new Color(245, 241, 157, 150);
+	private static final Color TRACKER_NOTE    = new Color(180, 255, 240, 64);
+	private static final Color TRACKER_EFFECT  = new Color(250, 208, 122, 60);
+	private static final Color TRACKER_HILIGHT = new Color(214, 78, 152, 72);
+	private static final Color TRACKER_ACCENT  = new Color(146, 205, 255, 88);
+	private static final Color TRACKER_STEP    = new Color(250, 208, 122, 28);
+	private static final Color TRACKER_BAR     = new Color(214, 78, 152, 42);
+	private static final Color TRACKER_CH_SHADE = new Color(120, 170, 255, 10);
+	private static final Color TRACKER_SCAN    = new Color(255, 255, 255, 16);
+	private static final Font TRACKER_FONT     = new Font("JetBrains Mono", Font.PLAIN, 12);
+
 	// ---- Color animation ----
 	// Full hue drift cycle over ~10 minutes at 60 fps — very subtle living shift
 	private static final float HUE_CYCLE = 36000f;
@@ -77,6 +102,10 @@ public class WaveformPanel extends JPanel {
 	private int   trailCount = 0;
 	private float autoGain   = 1.0f;
 	private int   frameCount = 0;
+	private boolean trackerBackdropEnabled = false;
+	private double playbackPositionSeconds = 0.0d;
+	private String[][] trackerNotes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
+	private String[][] trackerEffects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 
 	private final Timer animTimer;
 
@@ -97,6 +126,29 @@ public class WaveformPanel extends JPanel {
 
 	public void start() {
 		if (!animTimer.isRunning()) animTimer.start();
+	}
+
+	public void setTrackerBackdrop(String seedKey) {
+		if (seedKey == null || seedKey.isBlank()) {
+			clearTrackerBackdrop();
+			return;
+		}
+		trackerBackdropEnabled = true;
+		playbackPositionSeconds = 0.0d;
+		populateTrackerPattern(seedKey);
+		repaint();
+	}
+
+	public void clearTrackerBackdrop() {
+		trackerBackdropEnabled = false;
+		playbackPositionSeconds = 0.0d;
+		trackerNotes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
+		trackerEffects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
+		repaint();
+	}
+
+	public void setPlaybackPositionSeconds(double seconds) {
+		playbackPositionSeconds = Math.max(0.0d, seconds);
 	}
 
 	// ---- Color helpers ----
@@ -148,6 +200,10 @@ public class WaveformPanel extends JPanel {
 			updateBg(w, h);
 			g2.setPaint(bgPaint);
 			g2.fillRect(0, 0, w, h);
+
+			if (trackerBackdropEnabled) {
+				drawTrackerBackdrop(g2, w, h);
+			}
 
 			// 2 — Audio snapshot
 			boolean hasAudio = false;
@@ -278,6 +334,125 @@ public class WaveformPanel extends JPanel {
 		g2.fillRect(0, 0, vw, h);
 		g2.setPaint(new GradientPaint(w - vw, 0, new Color(0, 0, 0, 0), w, 0, new Color(0, 0, 0, 100)));
 		g2.fillRect(w - vw, 0, vw, h);
+	}
+
+	private void populateTrackerPattern(String seedKey) {
+		Random random = new Random(seedKey.hashCode() * 1103515245L + 12345L);
+		String[][] notes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
+		String[][] effects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
+		for (int row = 0; row < TRACKER_ROWS; row++) {
+			for (int col = 0; col < TRACKER_COLUMNS; col++) {
+				if (random.nextFloat() < 0.34f) {
+					notes[row][col] = NOTE_POOL[random.nextInt(NOTE_POOL.length)];
+				}
+				if (random.nextFloat() < 0.48f) {
+					effects[row][col] = EFFECT_POOL[random.nextInt(EFFECT_POOL.length)];
+				}
+			}
+		}
+		trackerNotes = notes;
+		trackerEffects = effects;
+	}
+
+	private void drawTrackerBackdrop(Graphics2D g2, int w, int h) {
+		Graphics2D trackerGraphics = (Graphics2D) g2.create();
+		try {
+			trackerGraphics.setFont(TRACKER_FONT);
+			trackerGraphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+			FontMetrics metrics = trackerGraphics.getFontMetrics();
+			int rowHeight = Math.max(14, metrics.getHeight() + 2);
+			int topInset = 10;
+			int bottomInset = 10;
+			int gutterWidth = 42;
+			int availableHeight = Math.max(rowHeight, h - topInset - bottomInset);
+			int visibleRows = Math.max(1, availableHeight / rowHeight) + 2;
+			double scrollRows = playbackPositionSeconds * TRACKER_SPEED;
+			int currentRow = Math.floorMod((int) Math.floor(scrollRows), TRACKER_ROWS);
+			double rowFraction = scrollRows - Math.floor(scrollRows);
+			int startRow = currentRow - visibleRows / 2;
+			int drawWidth = Math.max(80, w - gutterWidth - 12);
+			float columnWidth = drawWidth / (float) TRACKER_COLUMNS;
+			float scrollOffset = (float) (rowFraction * rowHeight);
+			int highlightY = Math.round(topInset + (visibleRows / 2f) * rowHeight - scrollOffset);
+
+			for (int col = 0; col < TRACKER_COLUMNS; col++) {
+				if ((col & 1) == 1) {
+					int x = gutterWidth + Math.round(col * columnWidth);
+					int shadeWidth = Math.max(8, Math.round(columnWidth));
+					trackerGraphics.setColor(TRACKER_CH_SHADE);
+					trackerGraphics.fillRect(x, topInset, shadeWidth, availableHeight + rowHeight);
+				}
+			}
+
+			trackerGraphics.setColor(TRACKER_HILIGHT);
+			trackerGraphics.fillRoundRect(0, highlightY, w, rowHeight, rowHeight, rowHeight);
+			trackerGraphics.setColor(TRACKER_ACCENT);
+			trackerGraphics.fillRoundRect(0, highlightY, 12, rowHeight, rowHeight, rowHeight);
+
+			for (int rowIndex = 0; rowIndex <= visibleRows; rowIndex++) {
+				int y = Math.round(topInset + rowIndex * rowHeight - scrollOffset);
+				int logicalRow = Math.floorMod(startRow + rowIndex, TRACKER_ROWS);
+				trackerGraphics.setColor(resolveRowLineColor(logicalRow));
+				trackerGraphics.drawLine(0, y, w, y);
+			}
+
+			for (int col = 0; col <= TRACKER_COLUMNS; col++) {
+				int x = gutterWidth + Math.round(col * columnWidth);
+				trackerGraphics.setColor(TRACKER_GRID);
+				trackerGraphics.drawLine(x, topInset, x, topInset + visibleRows * rowHeight);
+			}
+
+			for (int rowIndex = 0; rowIndex < visibleRows; rowIndex++) {
+				int row = Math.floorMod(startRow + rowIndex, TRACKER_ROWS);
+				int y = Math.round(topInset + rowIndex * rowHeight - scrollOffset);
+				if (y + rowHeight < topInset || y > h - bottomInset) {
+					continue;
+				}
+
+				trackerGraphics.setColor(TRACKER_GUTTER);
+				trackerGraphics.drawString(String.format("%02X", row), 6, y + metrics.getAscent());
+
+				for (int col = 0; col < TRACKER_COLUMNS; col++) {
+					int x = gutterWidth + Math.round(col * columnWidth) + 8;
+					String note = trackerNotes[row][col];
+					String effect = trackerEffects[row][col];
+					if (note != null) {
+						trackerGraphics.setColor(TRACKER_NOTE);
+						trackerGraphics.drawString(note, x, y + metrics.getAscent());
+					}
+					if (effect != null) {
+						trackerGraphics.setColor(TRACKER_EFFECT);
+						trackerGraphics.drawString(effect, x + 42, y + metrics.getAscent());
+					}
+				}
+			}
+
+			drawTrackerOverlays(trackerGraphics, w, topInset, availableHeight, highlightY, rowHeight);
+		} finally {
+			trackerGraphics.dispose();
+		}
+	}
+
+	private Color resolveRowLineColor(int row) {
+		if (row % 16 == 0) {
+			return TRACKER_BAR;
+		}
+		if (row % 4 == 0) {
+			return TRACKER_STEP;
+		}
+		return TRACKER_GRID;
+	}
+
+	private void drawTrackerOverlays(Graphics2D g2, int w, int topInset, int availableHeight, int highlightY, int rowHeight) {
+		int scanlineY = topInset + (int) ((availableHeight + rowHeight) * ((Math.sin(frameCount * 0.018) + 1.0) * 0.5));
+		g2.setPaint(new GradientPaint(0, scanlineY - 10, new Color(255, 255, 255, 0),
+			0, scanlineY, TRACKER_SCAN));
+		g2.fillRect(0, scanlineY - 10, w, 20);
+
+		g2.setPaint(new GradientPaint(0, highlightY, new Color(255, 255, 255, 22),
+			0, highlightY + rowHeight, new Color(255, 255, 255, 0)));
+		g2.fillRoundRect(14, highlightY, Math.max(0, w - 28), rowHeight, rowHeight, rowHeight);
 	}
 
 	// ---- Audio processing ----
