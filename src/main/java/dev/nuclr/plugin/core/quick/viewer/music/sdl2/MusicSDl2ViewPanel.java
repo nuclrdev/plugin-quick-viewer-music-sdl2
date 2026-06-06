@@ -35,7 +35,7 @@ import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
-import dev.nuclr.platform.plugin.NuclrResourcePath;
+import dev.nuclr.platform.plugin.NuclrResource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import sdl2.AudioRingBuffer;
@@ -63,7 +63,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	public static SDLMixerAudio TrackerMusic;
 	private static AudioRingBuffer audioRingBuffer;
 
-	private NuclrResourcePath currentFile;
+	private NuclrResource currentFile;
 	private Path stagedFile;
 	private Timer updateTimer;
 	private WaveformPanel waveformPanel;
@@ -354,7 +354,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	// ---- Public API ----
-	public boolean load(NuclrResourcePath item, AtomicBoolean cancelled) {
+	public boolean load(NuclrResource item, AtomicBoolean cancelled) {
 		if (cancelled.get()) return false;
 
 		this.currentFile = item;
@@ -544,7 +544,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		updatePlayPauseIcon();
 	}
 
-	private Path ensureLoadableFile(NuclrResourcePath item, AtomicBoolean cancelled) throws Exception {
+	private Path ensureLoadableFile(NuclrResource item, AtomicBoolean cancelled) throws Exception {
 		Path path = item != null ? item.getPath() : null;
 		if (path != null) {
 			try {
@@ -560,7 +560,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		String suffix = extensionSuffix(item);
 		Path tempFile = Files.createTempFile("nuclr-music-preview-", suffix);
 		try {
-			try (InputStream input = item.openStream(); OutputStream output = Files.newOutputStream(tempFile)) {
+			try (InputStream input = Files.newInputStream(item.getPath()); OutputStream output = Files.newOutputStream(tempFile)) {
 				copyWithCancellation(input, output, cancelled);
 			}
 			stagedFile = tempFile;
@@ -584,9 +584,16 @@ public class MusicSDl2ViewPanel extends JPanel {
 		}
 	}
 
-	private String extensionSuffix(NuclrResourcePath item) {
-		String extension = item != null ? item.getExtension() : "";
-		if (extension == null || extension.isBlank()) {
+	private String extensionSuffix(NuclrResource item) {
+		String name = item != null ? item.getName() : null;
+		String extension = "";
+		if (name != null) {
+			int dot = name.lastIndexOf('.');
+			if (dot >= 0 && dot < name.length() - 1) {
+				extension = name.substring(dot + 1);
+			}
+		}
+		if (extension.isBlank()) {
 			return ".tmp";
 		}
 		return extension.startsWith(".") ? extension : "." + extension;

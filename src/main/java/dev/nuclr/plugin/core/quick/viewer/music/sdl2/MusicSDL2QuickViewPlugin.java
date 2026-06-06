@@ -1,25 +1,25 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
-import java.util.List;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JComponent;
 
+import org.apache.commons.io.FilenameUtils;
+
 import dev.nuclr.platform.NuclrThemeScheme;
-import dev.nuclr.platform.plugin.NuclrMenuResource;
-import dev.nuclr.platform.plugin.NuclrPlugin;
 import dev.nuclr.platform.plugin.NuclrPluginContext;
-import dev.nuclr.platform.plugin.NuclrPluginRole;
-import dev.nuclr.platform.plugin.NuclrResourcePath;
+import dev.nuclr.platform.plugin.NuclrResource;
+import dev.nuclr.platform.plugin.QuickViewNuclrPlugin;
 import sdl2.NativeLibExtractor;
 
-public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
+public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 
 	private NuclrPluginContext context;
 	private MusicSDl2ViewPanel panel;
 	private volatile AtomicBoolean currentCancelled;
-	private NuclrResourcePath currentResource;
+	private NuclrResource currentResource;
 
 	@Override
 	public JComponent panel() {
@@ -30,21 +30,44 @@ public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
 	}
 
 	@Override
-	public List<NuclrMenuResource> menuItems(NuclrResourcePath source) {
-		return List.of();
-	}
-
-	@Override
-	public void load(NuclrPluginContext context, boolean isTemplate) {
+	public void preinit(NuclrPluginContext context) {
 		this.context = context;
 	}
 
 	@Override
-	public boolean supports(NuclrResourcePath resource) {
-		if (resource == null || resource.getExtension() == null) {
+	public void init() {
+	}
+
+	@Override
+	public NuclrPluginContext getContext() {
+		return this.context;
+	}
+
+	@Override
+	public boolean supports(Path resource) {
+		String extension = extension(resource);
+		if (extension == null) {
 			return false;
 		}
-		return MusicSDl2ViewPanel.allowedExtensions.contains(resource.getExtension().toLowerCase(Locale.ROOT));
+		return MusicSDl2ViewPanel.allowedExtensions.contains(extension.toLowerCase(Locale.ROOT));
+	}
+	
+	private static String extension(Path path) {
+		var name = path.getFileName() != null ? path.getFileName().toString() : path.toString();
+		return FilenameUtils.getExtension(name);
+	}
+	
+
+	private static String extension(NuclrResource resource) {
+		if (resource == null || resource.getName() == null) {
+			return null;
+		}
+		String name = resource.getName();
+		int dot = name.lastIndexOf('.');
+		if (dot < 0 || dot == name.length() - 1) {
+			return null;
+		}
+		return name.substring(dot + 1);
 	}
 
 	@Override
@@ -53,7 +76,7 @@ public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
 	}
 
 	@Override
-	public boolean openResource(NuclrResourcePath resource, AtomicBoolean cancelled) {
+	public boolean openResource(NuclrResource resource, AtomicBoolean cancelled) {
 		if (currentCancelled != null) {
 			currentCancelled.set(true);
 		}
@@ -152,7 +175,7 @@ public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
 	}
 
 	@Override
-	public Developer type() {
+	public Developer developer() {
 		return Developer.Official;
 	}
 
@@ -161,12 +184,7 @@ public class MusicSDL2QuickViewPlugin implements NuclrPlugin {
 	}
 
 	@Override
-	public NuclrPluginRole role() {
-		return NuclrPluginRole.QuickViewer;
-	}
-
-	@Override
-	public NuclrResourcePath getCurrentResource() {
+	public NuclrResource getCurrentResource() {
 		return this.currentResource;
 	}
 
