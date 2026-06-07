@@ -44,7 +44,8 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 	}
 
 	@Override
-	public boolean supports(Path resource) {
+	public boolean supports(NuclrResource resource) {
+		var path = resource.getPath();
 		String extension = extension(resource);
 		if (extension == null) {
 			return false;
