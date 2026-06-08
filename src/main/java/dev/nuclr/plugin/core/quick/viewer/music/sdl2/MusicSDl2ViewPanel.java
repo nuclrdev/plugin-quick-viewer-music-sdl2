@@ -382,7 +382,9 @@ public class MusicSDl2ViewPanel extends JPanel {
 			}
 			TrackerMusic.playMusic(-1);
 
-			String name = file.getFileName() != null ? file.getFileName().toString() : file.toString();
+			// Show the original resource's name, not the staged temp file's name
+			// (which is "nuclr-music-preview-…").
+			String name = displayName(item, file);
 			String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1) : "";
 			String extUpper = ext.toUpperCase();
 			trackNameLabel.setText(name);
@@ -407,6 +409,22 @@ public class MusicSDl2ViewPanel extends JPanel {
 		}
 		
 		return true;
+	}
+
+	/**
+	 * The name to display for a track: the original resource's name, falling back to
+	 * the staged file only if the resource has none.
+	 */
+	private static String displayName(NuclrResource item, Path stagedFallback) {
+		if (item != null && item.getName() != null && !item.getName().isBlank()) {
+			return item.getName();
+		}
+		if (stagedFallback != null) {
+			return stagedFallback.getFileName() != null
+					? stagedFallback.getFileName().toString()
+					: stagedFallback.toString();
+		}
+		return "";
 	}
 
 	public void stopMusic() {
