@@ -545,22 +545,19 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	private Path ensureLoadableFile(NuclrResource item, AtomicBoolean cancelled) throws Exception {
-		Path path = item != null ? item.getPath() : null;
-		if (path != null) {
-			try {
-				path.toFile();
-				deleteStagedFile();
-				return path;
-			} catch (UnsupportedOperationException | IllegalArgumentException ignored) {
-				// Fall back to a temp file for non-default filesystems such as zipfs.
-			}
-		}
-
+		// The native SDL_mixer loader requires a real file on the default filesystem,
+		// so the resource is always staged to a temp file. Read it through the resource
+		// abstraction (openInputStream) rather than its Path, so resources backed by
+		// non-file sources (zip entries, remote/in-memory content) work identically.
 		deleteStagedFile();
 		String suffix = extensionSuffix(item);
 		Path tempFile = Files.createTempFile("nuclr-music-preview-", suffix);
+		// Safety net: the file is normally deleted eagerly (on the next load and on
+		// closeResource), but register it for JVM-shutdown deletion too so it is not
+		// left behind if the app exits before cleanup or an eager delete fails.
+		tempFile.toFile().deleteOnExit();
 		try {
-			try (InputStream input = Files.newInputStream(item.getPath()); OutputStream output = Files.newOutputStream(tempFile)) {
+			try (InputStream input = item.openInputStream(); OutputStream output = Files.newOutputStream(tempFile)) {
 				copyWithCancellation(input, output, cancelled);
 			}
 			stagedFile = tempFile;

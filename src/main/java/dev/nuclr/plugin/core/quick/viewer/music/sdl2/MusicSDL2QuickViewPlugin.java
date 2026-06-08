@@ -1,12 +1,9 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JComponent;
-
-import org.apache.commons.io.FilenameUtils;
 
 import dev.nuclr.platform.NuclrThemeScheme;
 import dev.nuclr.platform.plugin.NuclrPluginContext;
@@ -45,19 +42,12 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 
 	@Override
 	public boolean supports(NuclrResource resource) {
-		var path = resource.getPath();
 		String extension = extension(resource);
 		if (extension == null) {
 			return false;
 		}
 		return MusicSDl2ViewPanel.allowedExtensions.contains(extension.toLowerCase(Locale.ROOT));
 	}
-	
-	private static String extension(Path path) {
-		var name = path.getFileName() != null ? path.getFileName().toString() : path.toString();
-		return FilenameUtils.getExtension(name);
-	}
-	
 
 	private static String extension(NuclrResource resource) {
 		if (resource == null || resource.getName() == null) {
