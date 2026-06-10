@@ -112,7 +112,7 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 
 	private String name = "Music Quick Viewer (SDL2)";
 	private String id = "dev.nuclr.plugin.core.quickviewer.music.sdl2";
-	private String version = "1.0.1";
+	private final String version = loadVersion();
 	private String description = "A quick viewer for music/sound files.";
 	private String author = "Nuclr Development Team";
 	private String license = "Apache-2.0";
@@ -133,6 +133,16 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 	@Override
 	public String version() {
 		return version;
+	}
+	private static String loadVersion() {
+		try (var stream = MusicSDL2QuickViewPlugin.class.getResourceAsStream("/plugin.properties")) {
+			if (stream == null) return "unknown";
+			var props = new java.util.Properties();
+			props.load(stream);
+			return props.getProperty("version", "unknown");
+		} catch (java.io.IOException e) {
+			return "unknown";
+		}
 	}
 
 	@Override

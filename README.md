@@ -1,15 +1,16 @@
 # 🎵🐢 Music Quick Viewer (SDL2)
 
-A rich audio quick viewer plugin for **Nuclr Commander**. It opens music files directly inside the quick view panel, plays them through **SDL2 / SDL2_mixer**, and renders a live waveform so tracker modules feel as lively as they sound 🎛️🐢
+A rich audio quick viewer plugin for **Nuclr Commander**. It opens music files directly inside the quick view panel, plays them through **SDL2 / SDL2_mixer**, and renders a live waveform so tracker modules feel as lively as they sound. 🎛️🐢
 
 ## ✨ What It Does
 
-- Plays music and audio files from Nuclr's quick view panel
-- Supports tracker formats like `xm`, `mod`, `s3m`, `it`, and `669`
-- Supports common audio formats like `mp3`, `ogg`, `flac`, `wav`, `aac`, `aiff`, `voc`, and `mid`
-- Shows a live oscilloscope-style waveform visualizer
-- Includes play/pause, stop, seek, rewind, forward, and volume controls
-- Displays current time and total duration when SDL_mixer exposes them
+- 🎵 Plays music and audio files from Nuclr's quick view panel
+- 🎛️ Supports tracker formats: `xm`, `mod`, `s3m`, `it`, `669`
+- 🔊 Supports common audio formats: `mp3`, `ogg`, `flac`, `wav`, `aac`, `aiff`, `voc`, `mid`
+- 📈 Live oscilloscope-style waveform visualizer driven from the SDL post-mix audio callback
+- ▶️ Play/pause, stop, seek, rewind (−10 s), and forward (+10 s) controls
+- 🎚️ Progress bar with seeking
+- ⏱️ Current time and total duration display (when SDL_mixer exposes them)
 
 ## 🖼️ Screenshots
 
@@ -21,44 +22,38 @@ A rich audio quick viewer plugin for **Nuclr Commander**. It opens music files d
 
 ![Quick view in action](images/screenshot-2.jpg)
 
-## 🎚️ UI Notes
+## 🎚️ Player Controls
 
-The viewer is designed for fast inspection rather than heavyweight library management:
+| Control | Action |
+|---|---|
+| `⏮` | Jump back 10 seconds |
+| `▶` / `⏸` | Toggle play / pause |
+| `■` | Stop playback |
+| `⏭` | Jump forward 10 seconds |
+| Progress bar | Click or drag to seek |
 
-- `⏮` jumps back 10 seconds
-- `▶ / ⏸` toggles playback
-- `■` stops playback
-- `⏭` jumps forward 10 seconds
-- The progress bar supports seeking
-- The waveform is driven from the SDL post-mix audio callback
+## 🧩 Supported Extensions
 
-## 📦 Supported Extensions
+| Category | Extensions |
+|---|---|
+| 🎼 Tracker modules | `xm`, `mod`, `s3m`, `it`, `669` |
+| 🔊 Common audio | `mp3`, `ogg`, `flac`, `wav`, `aac`, `aiff`, `voc`, `mid` |
 
-`wav`, `flac`, `aac`, `voc`, `aiff`, `mid`, `ogg`, `mp3`, `xm`, `mod`, `s3m`, `it`, `669`
-
-## 🧩 Runtime Requirements
+## 🖥️ Runtime Requirements
 
 This plugin depends on **SDL2** and **SDL2_mixer**.
 
 ### Windows 🪟
 
-Windows native libraries are bundled with the plugin and extracted automatically at runtime.
+Windows native libraries are bundled with the plugin and extracted automatically at runtime. No extra installation needed.
 
 ### macOS 🍎
-
-Install the runtime libraries first:
 
 ```bash
 brew install sdl2 sdl2_mixer
 ```
 
-The plugin now auto-detects standard Homebrew library locations such as:
-
-- `/opt/homebrew/lib`
-- `/usr/local/lib`
-- `/opt/local/lib`
-
-If your SDL libraries live somewhere unusual, launch the JVM with:
+The plugin auto-detects standard Homebrew library locations (`/opt/homebrew/lib`, `/usr/local/lib`, `/opt/local/lib`). For a custom location, launch the JVM with:
 
 ```bash
 -Djna.library.path=/path/to/libs
@@ -66,34 +61,52 @@ If your SDL libraries live somewhere unusual, launch the JVM with:
 
 ### Linux 🐧
 
-Install SDL runtime packages with your distro package manager. For Debian/Ubuntu-based systems:
-
 ```bash
 sudo apt-get install libsdl2-2.0-0 libsdl2-mixer-2.0-0
 ```
 
-If required, you can also point JNA at a custom location with:
+For a custom location:
 
 ```bash
 -Djna.library.path=/path/to/libs
 ```
 
-## 🛠️ Building
+## 📥 Installation
 
-Build the plugin package with Maven:
+Copy the signed plugin archive and detached signature into the Nuclr Commander `plugins/` directory:
 
-```bash
-mvn -DskipTests package
+```text
+quick-view-sdl2-music-<version>.zip
+quick-view-sdl2-music-<version>.zip.sig
 ```
 
-Artifacts are produced under `target/`, including the plugin ZIP package.
+Nuclr Commander verifies the RSA-SHA256 signature against `nuclr-cert.pem` on load. The plugin becomes available immediately without a restart.
 
-## 🧱 Project Notes
+## ⚙️ How it works
 
-- Java target: `21`
-- Native binding layer: `JNA`
-- Plugin id: `dev.nuclr.plugin.core.quickviewer.music.sdl2`
-- Plugin version: `1.0.1`
+`MusicSDL2QuickViewPlugin` initialises SDL2 and SDL2_mixer via JNA bindings. On Windows, `NativeLibExtractor` unpacks the bundled `.dll` files to a temp directory before the JNA load. The audio post-mix callback feeds decoded PCM samples into `AudioRingBuffer`, which `WaveformPanel` reads to render the oscilloscope display. Loading and SDL initialisation run on a virtual thread so the Swing EDT stays responsive.
+
+## 🗂️ Source Layout
+
+```text
+src/main/java/
+├── dev/nuclr/plugin/core/quick/viewer/music/sdl2/
+│   ├── MusicSDL2QuickViewPlugin.java   plugin entry point
+│   ├── MusicSDl2ViewPanel.java         player UI panel
+│   └── WaveformPanel.java              oscilloscope waveform renderer
+└── sdl2/
+    ├── SDLMixerAudio.java              SDL2_mixer JNA bindings
+    ├── AudioRingBuffer.java            lock-free ring buffer for PCM samples
+    ├── NativeLibExtractor.java         Windows native library extractor
+    └── SDLDiagnostic.java              SDL environment diagnostics
+```
+
+## 📚 Dependencies
+
+| Library | Version | Purpose |
+|---|---|---|
+| `dev.nuclr:platform-sdk` | `3.0.1` | Nuclr platform interfaces |
+| `jna` | `5.18.1` | Native SDL2 / SDL2_mixer bindings |
 
 ## 🌐 Links
 
@@ -102,4 +115,4 @@ Artifacts are produced under `target/`, including the plugin ZIP package.
 
 ## 📄 License
 
-This project is licensed under **Apache-2.0**. SDL-related runtime notices are included in the repository where required.
+Apache-2.0. SDL-related runtime notices are included in the repository where required.
