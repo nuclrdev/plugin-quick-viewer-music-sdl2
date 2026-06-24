@@ -82,13 +82,13 @@ public class MusicSDl2ViewPanel extends JPanel {
 	private JLabel volumeLabel;
 
 	public MusicSDl2ViewPanel() {
-		bgColor       = new Color(0x14, 0x17, 0x1F);
-		accentColor   = uiColor("Component.accentColor",    new Color(0x4E, 0x9A, 0xE1));
-		textPrimary   = uiColor("Label.foreground",         new Color(0xD2, 0xDA, 0xE8));
-		textSecondary = new Color(0x8B, 0x96, 0xA8);
-		trackBg       = new Color(0x2B, 0x31, 0x3D);
-		buttonBg      = new Color(0x1F, 0x25, 0x31);
-		buttonHover   = new Color(0x2B, 0x33, 0x42);
+		bgColor       = uiColor("Panel.background",          new Color(0x14, 0x17, 0x1F));
+		accentColor   = uiColor("Component.accentColor",     new Color(0x4E, 0x9A, 0xE1));
+		textPrimary   = uiColor("Label.foreground",          new Color(0xD2, 0xDA, 0xE8));
+		textSecondary = uiColor("Label.disabledForeground",  new Color(0x8B, 0x96, 0xA8));
+		trackBg       = uiColor("Component.borderColor",     new Color(0x2B, 0x31, 0x3D));
+		buttonBg      = uiColor("Button.background",          new Color(0x1F, 0x25, 0x31));
+		buttonHover   = uiColor("Button.hoverBackground",     new Color(0x2B, 0x33, 0x42));
 		setLayout(new BorderLayout());
 		setBackground(bgColor);
 		buildUI();
