@@ -28,6 +28,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
@@ -80,6 +81,10 @@ public class MusicSDl2ViewPanel extends JPanel {
 	private JButton forwardButton;
 	private JSlider volumeSlider;
 	private JLabel volumeLabel;
+	private JCheckBox loopCheckBox;
+
+	/** Whether playback loops indefinitely. Defaults to on. */
+	private boolean loopEnabled = true;
 
 	public MusicSDl2ViewPanel() {
 		bgColor       = uiColor("Panel.background",          new Color(0x14, 0x17, 0x1F));
@@ -227,6 +232,17 @@ public class MusicSDl2ViewPanel extends JPanel {
 		gbc.fill = GridBagConstraints.NONE;
 		volumePanel.add(volumeLabel, gbc);
 
+		loopCheckBox = new JCheckBox("Loop", loopEnabled);
+		loopCheckBox.setToolTipText("Repeat the track when it finishes");
+		loopCheckBox.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
+		loopCheckBox.setForeground(textSecondary);
+		loopCheckBox.setBackground(bgColor);
+		loopCheckBox.setFocusable(false);
+		loopCheckBox.addActionListener(e -> loopEnabled = loopCheckBox.isSelected());
+		gbc.gridx = 3;
+		gbc.insets = new Insets(0, 14, 0, 0);
+		volumePanel.add(loopCheckBox, gbc);
+
 		// Assemble controls
 		controlsPanel.add(progressBar);
 		controlsPanel.add(Box.createVerticalStrut(4));
@@ -267,6 +283,11 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 	// ---- Playback actions ----
 
+	/** Loop count to pass to SDL_mixer: -1 for infinite, 0 to play once. */
+	private int loops() {
+		return loopEnabled ? -1 : 0;
+	}
+
 	private void onPlayPause() {
 		if (TrackerMusic == null) return;
 
@@ -278,7 +299,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			try {
 				var file = ensureLoadableFile(currentFile, null);
 				TrackerMusic.loadMusic(file.toFile());
-				TrackerMusic.playMusic(-1);
+				TrackerMusic.playMusic(loops());
 			} catch (Exception e) {
 				log.error("Failed to restart music: {}", e.getMessage(), e);
 			}
@@ -380,7 +401,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 				TrackerMusic.stopMusic();
 				return false;
 			}
-			TrackerMusic.playMusic(-1);
+			TrackerMusic.playMusic(loops());
 
 			// Show the original resource's name, not the staged temp file's name
 			// (which is "nuclr-music-preview-…").
