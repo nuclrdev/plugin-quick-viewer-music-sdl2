@@ -12,7 +12,11 @@ import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
 import java.util.Random;
 
+import javax.swing.ButtonGroup;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.Timer;
 
 import sdl2.AudioRingBuffer;
@@ -25,6 +29,12 @@ import sdl2.AudioRingBuffer;
  * the wave edges and motion-trail ghost frames.
  */
 public class WaveformPanel extends JPanel {
+
+	/** Selectable visualizer styles, switched via the right-click context menu. */
+	public enum VisualizerMode { AURORA, SPECTRUM }
+
+	// Remembered across panel/instance recreation so the choice sticks for the session.
+	private static VisualizerMode mode = VisualizerMode.AURORA;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -115,11 +125,37 @@ public class WaveformPanel extends JPanel {
 
 	private final Timer animTimer;
 
+	// ---- Alternate visualizer ----
+	private final SpectrumVisualizer spectrum = new SpectrumVisualizer();
+
 	public WaveformPanel() {
 		setOpaque(true);
 		setBackground(BG_BOTTOM);
+		installVisualizerMenu();
 		animTimer = new Timer(16, e -> repaint()); // ~60 fps
 		animTimer.start();
+	}
+
+	/** Right-click menu on the visualizer to switch between effect styles. */
+	private void installVisualizerMenu() {
+		JPopupMenu menu = new JPopupMenu();
+
+		JMenuItem header = new JMenuItem("Visualizer effect");
+		header.setEnabled(false);
+		menu.add(header);
+		menu.addSeparator();
+
+		ButtonGroup group = new ButtonGroup();
+		JRadioButtonMenuItem aurora   = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
+		JRadioButtonMenuItem spectrumItem = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
+		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
+		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
+		group.add(aurora);
+		group.add(spectrumItem);
+		menu.add(aurora);
+		menu.add(spectrumItem);
+
+		setComponentPopupMenu(menu);
 	}
 
 	public void setRingBuffer(AudioRingBuffer buf) {
@@ -206,6 +242,12 @@ public class WaveformPanel extends JPanel {
 			updateBg(w, h);
 			g2.setPaint(bgPaint);
 			g2.fillRect(0, 0, w, h);
+
+			// Alternate effect: FFT spectrum bars (self-contained renderer).
+			if (mode == VisualizerMode.SPECTRUM) {
+				spectrum.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
 
 			if (trackerBackdropEnabled) {
 				drawTrackerBackdrop(g2, w, h);
