@@ -34,7 +34,7 @@ public class WaveformPanel extends JPanel {
 	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR }
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.AURORA;
+	private static VisualizerMode mode = VisualizerMode.REACTOR;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);

@@ -8,7 +8,12 @@ import java.awt.RenderingHints;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Random;
+
+import javax.imageio.ImageIO;
 
 import sdl2.AudioRingBuffer;
 
@@ -49,6 +54,11 @@ final class ReactorVisualizer {
 	private static final Color RAD_GREEN = new Color(80, 255, 70);
 	private static final Color HAZ_AMBER = new Color(255, 200, 70);
 	private static final Color HOT_WHITE = new Color(255, 255, 235);
+
+	// ---- Backdrop image (shared, loaded once) ----
+	private static final String BG_RESOURCE = "/effects/reactor-bg.png";
+	private static volatile BufferedImage bgSource;
+	private static volatile boolean bgLoaded;
 
 	// ---- FFT buffers ----
 	private final float[] snapshot = new float[FFT_SIZE];
@@ -93,6 +103,11 @@ final class ReactorVisualizer {
 
 	private final Area trefoilShape = buildTrefoil();
 	private final Random rnd = new Random(92235L); // U-235
+
+	// Backdrop pre-scaled to the current panel size (re-rendered only on resize).
+	private BufferedImage bgScaled;
+	private int bgScaledW = -1;
+	private int bgScaledH = -1;
 
 	ReactorVisualizer() {
 		for (int i = 0; i < FFT_SIZE; i++) {
@@ -217,6 +232,7 @@ final class ReactorVisualizer {
 		float coreR      = coreBase * (0.75f + 0.85f * pulse) + coreFlash * coreBase * 0.7f;
 		float coronaMax  = scale * 0.30f;
 
+		drawBackdrop(g2, w, h);
 		drawAmbient(g2, cx, cy, scale, pulse);
 		drawTrefoil(g2, cx, cy, scale * 0.34f, trefoilAngle, (int) (22 + 46 * pulse));
 		drawShockwaves(g2, cx, cy, scale);
@@ -226,7 +242,54 @@ final class ReactorVisualizer {
 		updateAndDrawParticles(g2);
 
 		if (hasAudio) emitSparks(cx, cy, coreR, scale);
-		drawVignette(g2, cx, cy, scale, w, h);
+	}
+
+	/** Draws the baked nuclear backdrop, scaled to cover the panel (cached per size). */
+	private void drawBackdrop(Graphics2D g2, int w, int h) {
+		BufferedImage src = backgroundSource();
+		if (src == null) return;
+		if (bgScaled == null || bgScaledW != w || bgScaledH != h) {
+			bgScaled = coverScale(src, w, h);
+			bgScaledW = w;
+			bgScaledH = h;
+		}
+		g2.drawImage(bgScaled, 0, 0, null);
+	}
+
+	/** Lazily loads the shipped backdrop PNG; falls back to procedural generation if absent. */
+	private static BufferedImage backgroundSource() {
+		if (!bgLoaded) {
+			synchronized (ReactorVisualizer.class) {
+				if (!bgLoaded) {
+					bgLoaded = true;
+					try (InputStream in = ReactorVisualizer.class.getResourceAsStream(BG_RESOURCE)) {
+						if (in != null) bgSource = ImageIO.read(in);
+					} catch (IOException ignored) {
+						// fall through to procedural generation
+					}
+					if (bgSource == null) {
+						bgSource = ReactorBackground.render(1440, 900);
+					}
+				}
+			}
+		}
+		return bgSource;
+	}
+
+	/** Scale {@code src} to fully cover {@code w}x{@code h}, centred (excess cropped). */
+	private static BufferedImage coverScale(BufferedImage src, int w, int h) {
+		BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = out.createGraphics();
+		try {
+			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			float scale = Math.max((float) w / src.getWidth(), (float) h / src.getHeight());
+			int dw = Math.round(src.getWidth() * scale);
+			int dh = Math.round(src.getHeight() * scale);
+			g.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh, null);
+		} finally {
+			g.dispose();
+		}
+		return out;
 	}
 
 	/** Soft radioactive haze filling the panel, breathing with the music. */
@@ -405,18 +468,6 @@ final class ReactorVisualizer {
 
 	// ---- Helpers ----
 
-	private void drawVignette(Graphics2D g2, float cx, float cy, float scale, int w, int h) {
-		float r = Math.max(scale, Math.max(w, h)) * 0.75f;
-		g2.setPaint(new RadialGradientPaint(cx, cy, r,
-				new float[]{0f, 0.62f, 1f},
-				new Color[]{
-					new Color(0, 0, 0, 0),
-					new Color(0, 0, 0, 0),
-					new Color(0, 0, 0, 150)
-				}));
-		g2.fillRect(0, 0, w, h);
-	}
-
 	/** Green -> amber -> white-hot colour ramp driven by ray length {@code t} (0..1). */
 	private static Color nuclearColor(float t, int alpha) {
 		float hue = 0.33f - 0.20f * Math.min(t, 1f);      // green -> amber
@@ -434,7 +485,7 @@ final class ReactorVisualizer {
 	}
 
 	/** Unit-radius radiation trefoil centred at the origin (central disc + three 60&deg; blades). */
-	private static Area buildTrefoil() {
+	static Area buildTrefoil() {
 		float inner = 0.36f;
 		float outer = 1.0f;
 		float dot   = 0.18f;
