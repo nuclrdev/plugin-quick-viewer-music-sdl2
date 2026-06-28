@@ -124,7 +124,7 @@ final class SpectrumVisualizer {
 			re[i] = s * hann[i];
 			im[i] = 0f;
 		}
-		fft(re, im, FFT_SIZE);
+		Fft.transform(re, im, FFT_SIZE);
 
 		float maxMag = 1e-4f;
 		for (int b = 0; b < NUM_BARS; b++) {
@@ -308,42 +308,6 @@ final class SpectrumVisualizer {
 		h = ((h % 1f) + 1f) % 1f;
 		Color c = Color.getHSBColor(h, clamp(s, 0f, 1f), clamp(b, 0f, 1f));
 		return new Color(c.getRed(), c.getGreen(), c.getBlue(), clamp255(a));
-	}
-
-	/** In-place iterative radix-2 Cooley-Tukey FFT ({@code n} must be a power of two). */
-	private static void fft(float[] re, float[] im, int n) {
-		// Bit-reversal permutation.
-		for (int i = 1, j = 0; i < n; i++) {
-			int bit = n >> 1;
-			for (; (j & bit) != 0; bit >>= 1) j ^= bit;
-			j ^= bit;
-			if (i < j) {
-				float t = re[i]; re[i] = re[j]; re[j] = t;
-				t = im[i]; im[i] = im[j]; im[j] = t;
-			}
-		}
-		for (int len = 2; len <= n; len <<= 1) {
-			double ang   = -2 * Math.PI / len;
-			float  wLenR = (float) Math.cos(ang);
-			float  wLenI = (float) Math.sin(ang);
-			int    half  = len >> 1;
-			for (int i = 0; i < n; i += len) {
-				float wR = 1f, wI = 0f;
-				for (int k = 0; k < half; k++) {
-					int   a   = i + k;
-					int   bIx = a + half;
-					float bR  = re[bIx] * wR - im[bIx] * wI;
-					float bI  = re[bIx] * wI + im[bIx] * wR;
-					re[bIx] = re[a] - bR;
-					im[bIx] = im[a] - bI;
-					re[a]  += bR;
-					im[a]  += bI;
-					float nR = wR * wLenR - wI * wLenI;
-					wI = wR * wLenI + wI * wLenR;
-					wR = nR;
-				}
-			}
-		}
 	}
 
 	private static float clamp(float v, float min, float max) {

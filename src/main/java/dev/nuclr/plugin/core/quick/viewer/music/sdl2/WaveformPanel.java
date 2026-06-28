@@ -31,7 +31,7 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
-	public enum VisualizerMode { AURORA, SPECTRUM }
+	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR }
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
 	private static VisualizerMode mode = VisualizerMode.AURORA;
@@ -125,8 +125,9 @@ public class WaveformPanel extends JPanel {
 
 	private final Timer animTimer;
 
-	// ---- Alternate visualizer ----
+	// ---- Alternate visualizers ----
 	private final SpectrumVisualizer spectrum = new SpectrumVisualizer();
+	private final ReactorVisualizer  reactor  = new ReactorVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -146,14 +147,18 @@ public class WaveformPanel extends JPanel {
 		menu.addSeparator();
 
 		ButtonGroup group = new ButtonGroup();
-		JRadioButtonMenuItem aurora   = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
+		JRadioButtonMenuItem aurora       = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
 		JRadioButtonMenuItem spectrumItem = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
+		JRadioButtonMenuItem reactorItem  = new JRadioButtonMenuItem("Reactor Core ☢", mode == VisualizerMode.REACTOR);
 		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
 		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
+		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
 		group.add(aurora);
 		group.add(spectrumItem);
+		group.add(reactorItem);
 		menu.add(aurora);
 		menu.add(spectrumItem);
+		menu.add(reactorItem);
 
 		setComponentPopupMenu(menu);
 	}
@@ -243,9 +248,13 @@ public class WaveformPanel extends JPanel {
 			g2.setPaint(bgPaint);
 			g2.fillRect(0, 0, w, h);
 
-			// Alternate effect: FFT spectrum bars (self-contained renderer).
+			// Alternate effects: self-contained renderers, each drawn over the background.
 			if (mode == VisualizerMode.SPECTRUM) {
 				spectrum.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.REACTOR) {
+				reactor.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
