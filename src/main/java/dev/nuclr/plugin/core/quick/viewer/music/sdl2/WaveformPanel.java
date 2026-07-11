@@ -31,10 +31,10 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
-	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS }
+	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS, DENDY }
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.BBS;
+	private static VisualizerMode mode = VisualizerMode.DENDY;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -134,6 +134,7 @@ public class WaveformPanel extends JPanel {
 	private final ZxSpectrumVisualizer zx       = new ZxSpectrumVisualizer();
 	private final DosVisualizer       dos       = new DosVisualizer();
 	private final BbsVisualizer       bbs       = new BbsVisualizer();
+	private final DendyVisualizer     dendy     = new DendyVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -162,6 +163,7 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem zxItem        = new JRadioButtonMenuItem("ZX Spectrum ▚ LOAD \"\"", mode == VisualizerMode.ZX);
 		JRadioButtonMenuItem dosItem       = new JRadioButtonMenuItem("Norton Commander ▓ (MS-DOS)", mode == VisualizerMode.DOS);
 		JRadioButtonMenuItem bbsItem       = new JRadioButtonMenuItem("BBS / ANSI ▒ (14400 baud)", mode == VisualizerMode.BBS);
+		JRadioButtonMenuItem dendyItem     = new JRadioButtonMenuItem("Dendy ▲ (TANK 1990)", mode == VisualizerMode.DENDY);
 		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
 		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
 		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
@@ -171,6 +173,8 @@ public class WaveformPanel extends JPanel {
 		zxItem.addActionListener(e -> { mode = VisualizerMode.ZX; repaint(); });
 		dosItem.addActionListener(e -> { mode = VisualizerMode.DOS; repaint(); });
 		bbsItem.addActionListener(e -> { mode = VisualizerMode.BBS; repaint(); });
+		dendyItem.addActionListener(e -> { mode = VisualizerMode.DENDY; repaint(); });
+		group.add(dendyItem);
 		group.add(bbsItem);
 		group.add(dosItem);
 		group.add(zxItem);
@@ -180,6 +184,7 @@ public class WaveformPanel extends JPanel {
 		group.add(spectrumItem);
 		group.add(reactorItem);
 		group.add(demosceneItem);
+		menu.add(dendyItem);
 		menu.add(bbsItem);
 		menu.add(dosItem);
 		menu.add(zxItem);
@@ -205,6 +210,7 @@ public class WaveformPanel extends JPanel {
 		zx.setTrackTitle(title);
 		dos.setTrackTitle(title);
 		bbs.setTrackTitle(title);
+		dendy.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -319,6 +325,10 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.BBS) {
 				bbs.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.DENDY) {
+				dendy.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
