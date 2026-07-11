@@ -31,10 +31,13 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
-	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS, DENDY }
+	public enum VisualizerMode {
+		AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS, DENDY,
+		C64, VECTREX, GAMEBOY, MAC
+	}
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.DENDY;
+	private static VisualizerMode mode = VisualizerMode.VECTREX;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -135,6 +138,10 @@ public class WaveformPanel extends JPanel {
 	private final DosVisualizer       dos       = new DosVisualizer();
 	private final BbsVisualizer       bbs       = new BbsVisualizer();
 	private final DendyVisualizer     dendy     = new DendyVisualizer();
+	private final C64Visualizer       c64       = new C64Visualizer();
+	private final VectrexVisualizer   vectrex   = new VectrexVisualizer();
+	private final GameBoyVisualizer   gameboy   = new GameBoyVisualizer();
+	private final MacVisualizer       mac       = new MacVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -164,6 +171,10 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem dosItem       = new JRadioButtonMenuItem("Norton Commander ▓ (MS-DOS)", mode == VisualizerMode.DOS);
 		JRadioButtonMenuItem bbsItem       = new JRadioButtonMenuItem("BBS / ANSI ▒ (14400 baud)", mode == VisualizerMode.BBS);
 		JRadioButtonMenuItem dendyItem     = new JRadioButtonMenuItem("Dendy ▲ (TANK 1990)", mode == VisualizerMode.DENDY);
+		JRadioButtonMenuItem c64Item       = new JRadioButtonMenuItem("C64 PETSCII ▞ LOAD\"*\",8,1", mode == VisualizerMode.C64);
+		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem("Vectrex ✦ (Vector Glow)", mode == VisualizerMode.VECTREX);
+		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem("Game Boy ▦ (Falling Blocks)", mode == VisualizerMode.GAMEBOY);
+		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem("Macintosh ☺ (1-bit Dither)", mode == VisualizerMode.MAC);
 		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
 		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
 		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
@@ -174,6 +185,14 @@ public class WaveformPanel extends JPanel {
 		dosItem.addActionListener(e -> { mode = VisualizerMode.DOS; repaint(); });
 		bbsItem.addActionListener(e -> { mode = VisualizerMode.BBS; repaint(); });
 		dendyItem.addActionListener(e -> { mode = VisualizerMode.DENDY; repaint(); });
+		c64Item.addActionListener(e -> { mode = VisualizerMode.C64; repaint(); });
+		vectrexItem.addActionListener(e -> { mode = VisualizerMode.VECTREX; repaint(); });
+		gameboyItem.addActionListener(e -> { mode = VisualizerMode.GAMEBOY; repaint(); });
+		macItem.addActionListener(e -> { mode = VisualizerMode.MAC; repaint(); });
+		group.add(vectrexItem);
+		group.add(c64Item);
+		group.add(gameboyItem);
+		group.add(macItem);
 		group.add(dendyItem);
 		group.add(bbsItem);
 		group.add(dosItem);
@@ -184,6 +203,10 @@ public class WaveformPanel extends JPanel {
 		group.add(spectrumItem);
 		group.add(reactorItem);
 		group.add(demosceneItem);
+		menu.add(vectrexItem);
+		menu.add(c64Item);
+		menu.add(gameboyItem);
+		menu.add(macItem);
 		menu.add(dendyItem);
 		menu.add(bbsItem);
 		menu.add(dosItem);
@@ -211,6 +234,10 @@ public class WaveformPanel extends JPanel {
 		dos.setTrackTitle(title);
 		bbs.setTrackTitle(title);
 		dendy.setTrackTitle(title);
+		c64.setTrackTitle(title);
+		vectrex.setTrackTitle(title);
+		gameboy.setTrackTitle(title);
+		mac.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -329,6 +356,22 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.DENDY) {
 				dendy.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.C64) {
+				c64.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.VECTREX) {
+				vectrex.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.GAMEBOY) {
+				gameboy.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.MAC) {
+				mac.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
