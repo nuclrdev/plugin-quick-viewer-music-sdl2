@@ -695,6 +695,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	private void updateTrackerBackdrop(String name, String extension) {
+		// The demoscene scroller announces every tune, module or not.
+		waveformPanel.setTrackTitle(name);
 		if (extension != null && moduleExtensions.contains(extension.toLowerCase())) {
 			waveformPanel.setTrackerBackdrop(name + ":" + extension.toLowerCase());
 		} else {

@@ -31,10 +31,10 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
-	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR }
+	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE }
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.REACTOR;
+	private static VisualizerMode mode = VisualizerMode.DEMOSCENE;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -126,8 +126,9 @@ public class WaveformPanel extends JPanel {
 	private final Timer animTimer;
 
 	// ---- Alternate visualizers ----
-	private final SpectrumVisualizer spectrum = new SpectrumVisualizer();
-	private final ReactorVisualizer  reactor  = new ReactorVisualizer();
+	private final SpectrumVisualizer  spectrum  = new SpectrumVisualizer();
+	private final ReactorVisualizer   reactor   = new ReactorVisualizer();
+	private final DemosceneVisualizer demoscene = new DemosceneVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -147,15 +148,19 @@ public class WaveformPanel extends JPanel {
 		menu.addSeparator();
 
 		ButtonGroup group = new ButtonGroup();
-		JRadioButtonMenuItem aurora       = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
-		JRadioButtonMenuItem spectrumItem = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
-		JRadioButtonMenuItem reactorItem  = new JRadioButtonMenuItem("Reactor Core ☢", mode == VisualizerMode.REACTOR);
+		JRadioButtonMenuItem aurora        = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
+		JRadioButtonMenuItem spectrumItem  = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
+		JRadioButtonMenuItem reactorItem   = new JRadioButtonMenuItem("Reactor Core ☢", mode == VisualizerMode.REACTOR);
+		JRadioButtonMenuItem demosceneItem = new JRadioButtonMenuItem("Assembly Demoscene ▲", mode == VisualizerMode.DEMOSCENE);
 		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
 		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
 		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
+		demosceneItem.addActionListener(e -> { mode = VisualizerMode.DEMOSCENE; repaint(); });
 		group.add(aurora);
 		group.add(spectrumItem);
 		group.add(reactorItem);
+		group.add(demosceneItem);
+		menu.add(demosceneItem);
 		menu.add(aurora);
 		menu.add(spectrumItem);
 		menu.add(reactorItem);
@@ -165,6 +170,11 @@ public class WaveformPanel extends JPanel {
 
 	public void setRingBuffer(AudioRingBuffer buf) {
 		this.ringBuffer = buf;
+	}
+
+	/** Announce the tune in the demoscene scroller. */
+	public void setTrackTitle(String title) {
+		demoscene.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -255,6 +265,10 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.REACTOR) {
 				reactor.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.DEMOSCENE) {
+				demoscene.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
