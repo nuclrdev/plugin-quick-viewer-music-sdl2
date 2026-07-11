@@ -31,10 +31,10 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
-	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX }
+	public enum VisualizerMode { AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS }
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.ZX;
+	private static VisualizerMode mode = VisualizerMode.DOS;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -132,6 +132,7 @@ public class WaveformPanel extends JPanel {
 	private final InfernoVisualizer   inferno   = new InfernoVisualizer();
 	private final AmigaVisualizer     amiga     = new AmigaVisualizer();
 	private final ZxSpectrumVisualizer zx       = new ZxSpectrumVisualizer();
+	private final DosVisualizer       dos       = new DosVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -158,6 +159,7 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem infernoItem   = new JRadioButtonMenuItem("id Inferno ☠ (Rip & Tear)", mode == VisualizerMode.INFERNO);
 		JRadioButtonMenuItem amigaItem     = new JRadioButtonMenuItem("Amiga Cracktro ◉ (Boing!)", mode == VisualizerMode.AMIGA);
 		JRadioButtonMenuItem zxItem        = new JRadioButtonMenuItem("ZX Spectrum ▚ LOAD \"\"", mode == VisualizerMode.ZX);
+		JRadioButtonMenuItem dosItem       = new JRadioButtonMenuItem("Norton Commander ▓ (MS-DOS)", mode == VisualizerMode.DOS);
 		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
 		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
 		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
@@ -165,6 +167,8 @@ public class WaveformPanel extends JPanel {
 		infernoItem.addActionListener(e -> { mode = VisualizerMode.INFERNO; repaint(); });
 		amigaItem.addActionListener(e -> { mode = VisualizerMode.AMIGA; repaint(); });
 		zxItem.addActionListener(e -> { mode = VisualizerMode.ZX; repaint(); });
+		dosItem.addActionListener(e -> { mode = VisualizerMode.DOS; repaint(); });
+		group.add(dosItem);
 		group.add(zxItem);
 		group.add(amigaItem);
 		group.add(infernoItem);
@@ -172,6 +176,7 @@ public class WaveformPanel extends JPanel {
 		group.add(spectrumItem);
 		group.add(reactorItem);
 		group.add(demosceneItem);
+		menu.add(dosItem);
 		menu.add(zxItem);
 		menu.add(amigaItem);
 		menu.add(infernoItem);
@@ -187,12 +192,13 @@ public class WaveformPanel extends JPanel {
 		this.ringBuffer = buf;
 	}
 
-	/** Announce the tune in the demoscene scroller, inferno message line, Amiga marquee and ZX loader. */
+	/** Announce the tune in the demoscene scroller, inferno message line, Amiga marquee, ZX loader and DOS panel. */
 	public void setTrackTitle(String title) {
 		demoscene.setTrackTitle(title);
 		inferno.setTrackTitle(title);
 		amiga.setTrackTitle(title);
 		zx.setTrackTitle(title);
+		dos.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -299,6 +305,10 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.ZX) {
 				zx.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.DOS) {
+				dos.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
