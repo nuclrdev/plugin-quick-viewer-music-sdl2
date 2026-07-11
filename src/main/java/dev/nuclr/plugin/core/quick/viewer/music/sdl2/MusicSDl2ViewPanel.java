@@ -41,6 +41,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import sdl2.AudioRingBuffer;
 import sdl2.SDLMixerAudio;
+import sdl2.Sdl2Support;
 
 @Data
 @Slf4j
@@ -381,6 +382,17 @@ public class MusicSDl2ViewPanel extends JPanel {
 		this.currentFile = item;
 		Path file = null;
 
+		// SDL2 ships with the plugin on Windows but is a system package on Linux and macOS.
+		// Check before touching SDLMixerAudio: loading it without the native libraries fails
+		// inside a static initializer, which no catch below could report usefully.
+		if (!Sdl2Support.isAvailable()) {
+			Sdl2Support.showMissingLibraryDialog(this);
+			trackNameLabel.setText("SDL2 audio libraries missing");
+			trackInfoLabel.setText(Sdl2Support.shortHint());
+			waveformPanel.clearTrackerBackdrop();
+			return false;
+		}
+
 		try {
 
 			if (TrackerMusic != null) {
@@ -421,6 +433,16 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 			updatePlayPauseIcon();
 
+		} catch (LinkageError e) {
+			// SDL2 is present but unusable (wrong ABI, half-installed, missing codec dependency):
+			// it surfaces as an ExceptionInInitializerError/NoClassDefFoundError from the JNA
+			// interfaces, which is an Error and would otherwise sail past the catch below.
+			log.error("SDL2 native libraries could not be initialised", e);
+			Sdl2Support.showMissingLibraryDialog(this);
+			trackNameLabel.setText("SDL2 audio libraries missing");
+			trackInfoLabel.setText(Sdl2Support.shortHint());
+			waveformPanel.clearTrackerBackdrop();
+			return false;
 		} catch (Exception e) {
 			log.error("Failed to read music file: {}", file != null ? file.toAbsolutePath() : currentFile, e);
 			trackNameLabel.setText("Error loading file");
