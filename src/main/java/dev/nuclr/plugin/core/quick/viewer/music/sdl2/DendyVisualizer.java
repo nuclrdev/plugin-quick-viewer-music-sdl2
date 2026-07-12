@@ -24,10 +24,7 @@ import sdl2.AudioRingBuffer;
  * When the music runs hot the sprites start to flicker — the genuine
  * too-many-sprites-per-scanline experience.
  * <p>
- * Every new track boots from a pirate multicart: a garish {@code 9999999 IN
- * 1} menu (three of the entries are TANK 1990, naturally) where the cursor
- * clicks down to your tune and PRESS START BUTTOM flashes, misspelling
- * included. And when the music stops, the cartridge unseats: the frozen
+ * When the music stops, the cartridge unseats: the frozen
  * frame corrupts tile by tile, dissolves into TV static, and the screen
  * offers the only advice that ever worked: {@code ПОДУЙ В КАРТРИДЖ}.
  * <p>
@@ -51,9 +48,6 @@ final class DendyVisualizer {
 	private static final int BRICK_HI  = 0xE7845C;
 	private static final int TANK_BODY = 0xFCBC3C;
 	private static final int TANK_DARK = 0xAC7C00;
-	private static final int[] RAINBOW = {
-		0xF83800, 0xFCA044, 0xF8D878, 0x00B800, 0x00E8D8, 0x3CBCFC, 0xF878F8
-	};
 
 	private final BufferedImage screen = new BufferedImage(SCREEN_W, SCREEN_H, BufferedImage.TYPE_INT_RGB);
 	private final int[] px = ((DataBufferInt) screen.getRaster().getDataBuffer()).getData();
@@ -124,22 +118,7 @@ final class DendyVisualizer {
 		"..DDDDDDDDDDDD..",
 	};
 
-	// ---- Multicart menu ----
-	private static final int MENU_TOTAL = 220;
-	private static final String[] MENU_ITEMS = {
-		"1. TANK 1990",
-		"2. SUPER MARIO 14",
-		"3. CONTRA 6",
-		"4. ",                 // the track lands here
-		"5. TANK 1990",
-		"6. AQUAMAN 2",
-		"7. TANK 1990",
-	};
-	private static final int MENU_TRACK_SLOT = 3;
-	private int menuTimer = MENU_TOTAL;   // start on the battlefield until a tune loads
-
 	// ---- State ----
-	private String trackTitle = "";
 	private int    idleFrames = 0;
 	private int    frame      = 0;
 	private final Random rnd = new Random(0xDE4D1);
@@ -158,10 +137,8 @@ final class DendyVisualizer {
 		}
 	}
 
-	/** New tune: slot it into the multicart and let the cursor pick it. */
+	/** New tune: fresh stage, straight into battle. */
 	void setTrackTitle(String title) {
-		trackTitle = title == null ? "" : title;
-		menuTimer = 0;
 		idleFrames = 0;
 		enemyIcons = 20;
 		stage = 1;
@@ -189,9 +166,6 @@ final class DendyVisualizer {
 			drawStatic();
 		} else if (idleFrames > 240) {
 			corruptFrame(); // cartridge unseating: freeze and glitch the last frame
-		} else if (menuTimer < MENU_TOTAL) {
-			menuTimer++;
-			drawMulticartMenu();
 		} else {
 			drawBattlefield();
 		}
@@ -457,54 +431,6 @@ final class DendyVisualizer {
 			g.drawString(String.valueOf(stage), FIELD_W + 14, fy + 28);
 			g.drawString("1P", FIELD_W + 8, 220);
 			g.drawString("x3", FIELD_W + 8, 231);
-		} finally {
-			g.dispose();
-		}
-	}
-
-	// ---- Multicart menu ----
-
-	private void drawMulticartMenu() {
-		fill(0, 0, SCREEN_W, SCREEN_H, BLACK);
-		Graphics2D g = screen.createGraphics();
-		try {
-			g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
-
-			g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
-			g.setColor(new Color(WHITE));
-			g.drawString("SUPER GAME", 92, 36);
-
-			// The garish rainbow title, one colour per glyph.
-			String title = "9999999 IN 1";
-			g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 18));
-			for (int i = 0; i < title.length(); i++) {
-				g.setColor(new Color(RAINBOW[(i + frame / 12) % RAINBOW.length]));
-				g.drawString(String.valueOf(title.charAt(i)), 64 + i * 11, 62);
-			}
-
-			g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 10));
-			int cursorAt = Math.min(menuTimer / 30, MENU_TRACK_SLOT);
-			for (int i = 0; i < MENU_ITEMS.length; i++) {
-				String item = MENU_ITEMS[i];
-				if (i == MENU_TRACK_SLOT) {
-					String t = trackTitle.isBlank() ? "MYSTERY TUNE" : trackTitle.toUpperCase();
-					if (t.length() > 22) t = t.substring(0, 22);
-					item = item + t;
-				}
-				boolean selected = i == cursorAt;
-				boolean locked = selected && i == MENU_TRACK_SLOT && menuTimer > 130;
-				g.setColor(new Color(locked && (frame / 8) % 2 == 0 ? TANK_BODY : selected ? WHITE : GRAY_L));
-				g.drawString(item, 56, 104 + i * 14);
-				if (selected) {
-					g.setColor(new Color(TANK_BODY));
-					g.drawString(">", 44, 104 + i * 14);
-				}
-			}
-
-			if (menuTimer > 165 && (frame / 12) % 2 == 0) {
-				g.setColor(new Color(WHITE));
-				g.drawString("PRESS START BUTTOM", 74, 216);
-			}
 		} finally {
 			g.dispose();
 		}

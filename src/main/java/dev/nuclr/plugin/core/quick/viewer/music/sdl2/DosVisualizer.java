@@ -20,8 +20,7 @@ import sdl2.AudioRingBuffer;
  * down a row on every beat — the right one a spectrum analyzer built from
  * {@code ░▒▓█} characters with peak caps, over the classic function-key bar.
  * <p>
- * Every new track boots first: {@code Starting MS-DOS...}, HIMEM, {@code SET
- * BLASTER=A220 I5 D1 T4}, then {@code NC.EXE}. While the music plays, the
+ * While the music plays, the
  * command line periodically types era-appropriate jokes and pops their
  * results as NC dialogs — {@code C:\>WIN} → {@code Bad command or file name},
  * the apocryphal 640K quote, the 32-bit/16-bit/8-bit/4-bit/2-bit/1-bit
@@ -80,21 +79,6 @@ final class DosVisualizer {
 	private static final int TRACK_SLOT = 4;
 	private int selRow = TRACK_SLOT;
 
-	// ---- Boot sequence ----
-	private static final String[] BOOT_LINES = {
-		"Starting MS-DOS...",
-		"",
-		"HIMEM is testing extended memory... done.",
-		"C:\\>SET BLASTER=A220 I5 D1 T4",
-		"C:\\>SMARTDRV.EXE /X 2048",
-		"C:\\>MSCDEX /D:MSCD001 /L:D",
-		"C:\\>CD MUSIC",
-		"C:\\MUSIC>NC.EXE",
-		"Norton Commander 5.0  Loading...",
-	};
-	private int bootChars = Integer.MAX_VALUE; // typed characters across all boot lines
-	private final int bootTotal;
-
 	// ---- Command-line jokes ----
 	private static final String[][] JOKES = {
 		{ "WIN", "Bad command or file name", "E" },
@@ -133,17 +117,12 @@ final class DosVisualizer {
 		for (int b = 1; b <= NUM_BARS; b++) {
 			if (barBin[b] <= barBin[b - 1]) barBin[b] = barBin[b - 1] + 1;
 		}
-
-		int total = 0;
-		for (String l : BOOT_LINES) total += l.length() + 4; // +4: per-line pause
-		bootTotal = total;
 	}
 
-	/** New tune: mangle to 8.3, tag it in the listing, and reboot the machine. */
+	/** New tune: mangle to 8.3 and tag it in the listing — straight to the panels. */
 	void setTrackTitle(String title) {
 		trackTitle = title == null ? "" : title;
 		trackName83 = dosName(trackTitle);
-		bootChars = 0;
 		jokePhase = JOKE_NONE;
 		jokeCooldown = 700;
 		selRow = TRACK_SLOT;
@@ -173,7 +152,6 @@ final class DosVisualizer {
 
 		if (idleFrames > 1500)      drawSafeToTurnOff();
 		else if (idleFrames > 300)  drawBsod();
-		else if (bootChars < bootTotal) drawBoot();
 		else                        drawNorton();
 
 		scr.rasterize();
@@ -236,10 +214,6 @@ final class DosVisualizer {
 	private void advanceState(boolean hasAudio) {
 		for (int b = 0; b < NUM_BARS; b++) barPeak[b] = Math.max(bars[b], barPeak[b] - 0.005f);
 
-		if (bootChars < bootTotal) {
-			bootChars = Math.min(bootTotal, bootChars + 3);
-			return;
-		}
 		switch (jokePhase) {
 			case JOKE_NONE -> {
 				if (hasAudio && --jokeCooldown <= 0) {
@@ -371,20 +345,6 @@ final class DosVisualizer {
 		}
 		String ok = blink() ? "[ Ok ]" : "  Ok  ";
 		print(c0 + (dw - 6) / 2, r0 + dh - 2, ok, bg, fg); // inverse video button
-	}
-
-	private void drawBoot() {
-		clear(' ', LGRAY, BLACK);
-		int budget = bootChars;
-		int row = 1;
-		for (String line : BOOT_LINES) {
-			if (budget <= 0) break;
-			int take = Math.min(line.length(), budget);
-			print(1, row, line.substring(0, take), LGRAY, BLACK);
-			budget -= line.length() + 4;
-			row++;
-		}
-		if (blink()) print(1, Math.min(ROWS - 1, row), "_", LGRAY, BLACK);
 	}
 
 	private void drawBsod() {

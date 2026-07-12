@@ -27,9 +27,8 @@ import sdl2.AudioRingBuffer;
  * and clear, and topping out triggers the classic fill-and-wipe game-over
  * curtain before a fresh game begins. The side panel keeps score, level,
  * lines, the NEXT box, and a four-band EQ. Every frame is blended with the
- * previous one — genuine DMG LCD ghosting. A new track boots with the logo
- * dropping down the screen; silence blinks {@code PAUSE}, and a long
- * silence simply switches the LCD off.
+ * previous one — genuine DMG LCD ghosting. Silence blinks {@code PAUSE},
+ * and a long silence simply switches the LCD off.
  */
 final class GameBoyVisualizer {
 
@@ -84,7 +83,6 @@ final class GameBoyVisualizer {
 	private int gameOverTimer = 0;
 
 	// ---- State ----
-	private int bootTimer = 0;
 	private int idleFrames = 0;
 	private int frame = 0;
 	private final Random rnd = new Random(0xB0B0);
@@ -144,9 +142,8 @@ final class GameBoyVisualizer {
 	private static int cellX(int packed) { return (packed >> 4) - 2; }
 	private static int cellY(int packed) { return (packed & 0xF) - 2; }
 
-	/** New tune: power-cycle the handheld, logo drop and all. */
+	/** New tune: the game just keeps playing. */
 	void setTrackTitle(String title) {
-		bootTimer = 110;
 		idleFrames = 0;
 	}
 
@@ -169,12 +166,9 @@ final class GameBoyVisualizer {
 		}
 		beatPulse *= 0.9f;
 		if (bPress > 0) bPress--;
-		if (bootTimer > 0) bootTimer--;
 
 		if (idleFrames > 900) {
 			java.util.Arrays.fill(px, G3);   // LCD off
-		} else if (bootTimer > 0) {
-			drawBootLogo();
 		} else {
 			if (idleFrames <= 240) stepGame();
 			drawGame();
@@ -468,20 +462,6 @@ final class GameBoyVisualizer {
 			int bh = Math.round(bands[b] * 24f);
 			fill(x0 + b * 10, 140 - bh, 7, bh, G1);
 			fill(x0 + b * 10, 140 - bh, 7, 2, G0);
-		}
-	}
-
-	private void drawBootLogo() {
-		java.util.Arrays.fill(px, G3);
-		Graphics2D g = screen.createGraphics();
-		try {
-			g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
-			g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 16));
-			g.setColor(new Color(G0));
-			int logoY = bootTimer > 50 ? 70 - (bootTimer - 50) * 2 : 70;
-			g.drawString("NUCLRBOY", 44, logoY);
-		} finally {
-			g.dispose();
 		}
 	}
 

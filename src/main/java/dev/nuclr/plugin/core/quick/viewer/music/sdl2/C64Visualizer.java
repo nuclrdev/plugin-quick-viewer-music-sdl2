@@ -26,10 +26,8 @@ import sdl2.AudioRingBuffer;
  * the field, and three bouncing balls get kicked by every beat.
  * <p>
  * Racing the beam: metallic raster bars drift over the top and bottom of the
- * character screen, and a scene scroller runs along the bottom. A new track
- * boots properly — {@code **** COMMODORE 64 BASIC V2 ****}, {@code
- * LOAD"TRACK",8,1 ... SEARCHING ... LOADING} — with the border strobing
- * turbo-loader colours while it loads. Silence drops back to a lonely
+ * character screen, and a scene scroller runs along the bottom.
+ * Silence drops back to a lonely
  * {@code READY.} prompt; stay silent and you earn {@code ?DEVICE NOT PRESENT
  * ERROR}.
  */
@@ -119,12 +117,6 @@ final class C64Visualizer {
 	private final float[] ballVy = { 0.9f, 1.2f, -1.4f };
 	private static final int[] BALL_COL = { 1, 10, 7 };
 
-	// ---- Boot sequence ----
-	private String bootLoadName = "TRACK";
-	private int bootChars = Integer.MAX_VALUE;
-	private int bootTotal = 1;
-	private boolean bootLoading = false;
-
 	// ---- Scroller ----
 	private String scrollText =
 		"NUCLR 64 PRESENTS THE PETSCII ENGINE ...   GREETINGS TO HVSC + FAIRLIGHT + CENSOR DESIGN + TRIAD ...   ";
@@ -156,22 +148,15 @@ final class C64Visualizer {
 		return sinT[((int) (turns * sinT.length) % sinT.length + sinT.length) % sinT.length];
 	}
 
-	/** New tune: LOAD it from device 8 with the border strobing. */
+	/** New tune: announce it in the scroller — straight into the effect. */
 	void setTrackTitle(String title) {
 		String name = title == null ? "" : title.toUpperCase().replaceAll("[^A-Z0-9 .]", "");
 		if (name.length() > 14) name = name.substring(0, 14);
 		if (name.isBlank()) name = "TRACK";
-		bootLoadName = name;
-		bootChars = 0;
-		bootTotal = bootScript().length() + 1;
 		scrollText = "NOW PLAYING: " + name + " ...   " + scrollText;
 		if (scrollText.length() > 240) scrollText = scrollText.substring(0, 240);
 		scrollX = Float.NaN;
 		idleFrames = 0;
-	}
-
-	private String bootScript() {
-		return "READY.\nLOAD\"" + bootLoadName + "\",8,1\n\nSEARCHING FOR " + bootLoadName + "\nLOADING\nREADY.\nRUN\n";
 	}
 
 	// ---- Render entry ----
@@ -191,13 +176,9 @@ final class C64Visualizer {
 			idleFrames++;
 		}
 		beatPulse *= 0.92f;
-		bootLoading = false;
 
 		if (idleFrames > 240) {
 			drawBasicScreen(idleFrames > 900);
-		} else if (bootChars < bootTotal) {
-			bootChars = Math.min(bootTotal, bootChars + 3);
-			drawBoot();
 		} else {
 			drawScene();
 		}
@@ -205,8 +186,7 @@ final class C64Visualizer {
 		// Border: the whole panel is the border, screen centred inside.
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,  RenderingHints.VALUE_ANTIALIAS_OFF);
 		g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-		int borderCol = bootLoading ? PAL[rnd.nextInt(16)] : PAL[BORDER];
-		g2.setColor(new Color(borderCol));
+		g2.setColor(new Color(PAL[BORDER]));
 		g2.fillRect(0, 0, w, h);
 		int minB = 12;
 		int sw = Math.max(64, Math.min(w - 2 * minB, (h - 2 * minB) * SCREEN_W / SCREEN_H));
@@ -430,37 +410,7 @@ final class C64Visualizer {
 		}
 	}
 
-	// ---- Boot & idle: the blue place we all came from ----
-
-	private void drawBoot() {
-		java.util.Arrays.fill(px, PAL[BG]);
-		Graphics2D g = screen.createGraphics();
-		try {
-			g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
-			g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 11));
-			g.setColor(new Color(PAL[INK]));
-			g.drawString("**** COMMODORE 64 BASIC V2 ****", 32, 20);
-			g.drawString("64K RAM SYSTEM  38911 BASIC BYTES FREE", 8, 34);
-
-			String script = bootScript();
-			int budget = bootChars;
-			int row = 0;
-			for (String line : script.split("\n", -1)) {
-				if (budget <= 0) break;
-				int take = Math.min(line.length(), budget);
-				String shown = line.substring(0, take);
-				g.drawString(shown, 8, 56 + row * 12);
-				if (shown.equals("LOADING")) bootLoading = true;
-				budget -= line.length() + 2;
-				row++;
-			}
-			if ((frame / 16) % 2 == 0) {
-				g.fillRect(8, 48 + row * 12, 8, 10);
-			}
-		} finally {
-			g.dispose();
-		}
-	}
+	// ---- Idle: the blue place we all came from ----
 
 	private void drawBasicScreen(boolean deviceError) {
 		java.util.Arrays.fill(px, PAL[BG]);

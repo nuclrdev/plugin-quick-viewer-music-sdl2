@@ -29,8 +29,7 @@ import sdl2.AudioRingBuffer;
  * desktop and clicks a menu on every beat, flashing it inverted, while the
  * beat also gives the front window a little bounce.
  * <p>
- * A new track boots the machine — happy little computer icon, then the
- * {@code Welcome to Macintosh} splash — and when the music stops the era's
+ * When the music stops, the era's
  * dreaded bomb dialog appears: {@code Sorry, a system error occurred. The
  * music has stopped.} The CRT's rounded corners are masked over everything,
  * because that glass never was square.
@@ -103,7 +102,6 @@ final class MacVisualizer {
 
 	// ---- State ----
 	private String trackTitle = "Untitled";
-	private int    bootTimer  = 0;
 	private int    idleFrames = 0;
 	private int    frame      = 0;
 	private final Random rnd = new Random(0x1984);
@@ -136,10 +134,9 @@ final class MacVisualizer {
 		return sinT[((int) (turns * sinT.length) % sinT.length + sinT.length) % sinT.length];
 	}
 
-	/** New tune: reboot into a freshly-titled document. */
+	/** New tune: just retitle the document window. */
 	void setTrackTitle(String title) {
 		trackTitle = title == null || title.isBlank() ? "Untitled" : title;
-		bootTimer = 150;
 		idleFrames = 0;
 	}
 
@@ -160,14 +157,9 @@ final class MacVisualizer {
 			idleFrames++;
 		}
 		beatPulse *= 0.9f;
-		if (bootTimer > 0) bootTimer--;
 		if (menuFlashTimer > 0 && --menuFlashTimer == 0) menuFlash = -1;
 
-		if (bootTimer > 0) {
-			drawBootScene();
-		} else {
-			drawDesktopScene(samples);
-		}
+		drawDesktopScene(samples);
 		atkinsonDither();
 		maskCrtCorners();
 
@@ -379,42 +371,7 @@ final class MacVisualizer {
 		}
 	}
 
-	// ---- Boot & bomb ----
-
-	private void drawBootScene() {
-		Graphics2D g = scene.createGraphics();
-		try {
-			g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
-			g.setColor(new Color(128, 128, 128));
-			g.fillRect(0, 0, SCREEN_W, SCREEN_H);
-
-			if (bootTimer > 90) {
-				// The happy little computer.
-				int cx = SCREEN_W / 2 - 24, cy = SCREEN_H / 2 - 30;
-				g.setColor(Color.WHITE);
-				g.fillRect(cx, cy, 48, 40);
-				g.setColor(Color.BLACK);
-				g.drawRect(cx, cy, 48, 40);
-				g.drawRect(cx + 6, cy + 5, 35, 24);
-				g.fillRect(cx + 16, cy + 12, 2, 6);   // eyes
-				g.fillRect(cx + 29, cy + 12, 2, 6);
-				g.fillRect(cx + 18, cy + 22, 2, 2);   // smile
-				g.fillRect(cx + 20, cy + 24, 7, 2);
-				g.fillRect(cx + 27, cy + 22, 2, 2);
-				g.fillRect(cx + 14, cy + 44, 20, 4);  // pedestal
-			} else {
-				g.setColor(Color.WHITE);
-				g.fillRoundRect(SCREEN_W / 2 - 120, SCREEN_H / 2 - 30, 240, 60, 12, 12);
-				g.setColor(Color.BLACK);
-				g.drawRoundRect(SCREEN_W / 2 - 120, SCREEN_H / 2 - 30, 240, 60, 12, 12);
-				g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-				String s = "Welcome to Macintosh";
-				g.drawString(s, SCREEN_W / 2 - g.getFontMetrics().stringWidth(s) / 2, SCREEN_H / 2 + 5);
-			}
-		} finally {
-			g.dispose();
-		}
-	}
+	// ---- The bomb ----
 
 	private void drawBombDialog(Graphics2D g) {
 		int dw = 330, dh = 110;

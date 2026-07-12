@@ -12,8 +12,7 @@ import sdl2.AudioRingBuffer;
  * "BBS / ANSI" — a dial-up bulletin board tribute visualizer.
  * <p>
  * Renders on the shared {@link TextModeScreen} as a 14400-baud terminal
- * session. Every new track redials: {@code ATZ}, {@code ATDT}, {@code CONNECT
- * 14400/ARQ/V32B}, log in as guest, ANSI art loads. The main screen is a
+ * session, already connected. The main screen is a
  * proper board: a big shaded block-letter banner (built by scaling the glyph
  * atlas up to cell-sized "pixels", TheDraw style), a ZMODEM download window
  * where the current tune transfers endlessly — CPS rate rides the music's
@@ -58,23 +57,6 @@ final class BbsVisualizer {
 	private float autoGain = 8f;
 	private int   framesSinceBeat = 999;
 	private int   noiseFrames = 0;
-
-	// ---- Dial-up sequence ----
-	private static final String[] DIAL_LINES = {
-		"ATZ",
-		"OK",
-		"ATDT 1-555-682-5722",
-		"",
-		"CONNECT 14400/ARQ/V32B/LAPM/V42BIS",
-		"",
-		"Welcome to NUCLR BBS - 8 nodes of pure MOD energy",
-		"Handle: guest",
-		"Password: ********",
-		"",
-		"Loading ANSI art... done.",
-	};
-	private int dialChars = Integer.MAX_VALUE;
-	private final int dialTotal;
 
 	// ---- ZMODEM transfer ----
 	private static final String[] QUEUE = {
@@ -122,23 +104,19 @@ final class BbsVisualizer {
 		for (int b = 1; b <= NUM_BARS; b++) {
 			if (barBin[b] <= barBin[b - 1]) barBin[b] = barBin[b - 1] + 1;
 		}
-		int total = 0;
-		for (String l : DIAL_LINES) total += l.length() + 4;
-		dialTotal = total;
 		for (int i = 0; i < feedView.length; i++) {
 			feedView[i] = FEED[i];
 		}
 		feedIdx = feedView.length;
 	}
 
-	/** New tune: hang up and redial; it becomes the file currently downloading. */
+	/** New tune: it becomes the file currently downloading — no redial needed. */
 	void setTrackTitle(String title) {
 		trackTitle = title == null ? "" : title;
 		downloadName = TextModeScreen.dosName(trackTitle);
 		downloadPct = 0f;
 		completeHold = 0;
 		fileFrames = 0;
-		dialChars = 0;
 	}
 
 	// ---- Render entry ----
@@ -161,9 +139,8 @@ final class BbsVisualizer {
 		}
 		advanceState(hasAudio);
 
-		if (idleFrames > 300)            drawNoCarrier();
-		else if (dialChars < dialTotal)  drawDial();
-		else                             drawBoard();
+		if (idleFrames > 300) drawNoCarrier();
+		else                  drawBoard();
 
 		scr.rasterize();
 
@@ -237,10 +214,6 @@ final class BbsVisualizer {
 	private void advanceState(boolean hasAudio) {
 		for (int b = 0; b < NUM_BARS; b++) barPeak[b] = Math.max(bars[b], barPeak[b] - 0.005f);
 		if (noiseFrames > 0) noiseFrames--;
-		if (dialChars < dialTotal) {
-			dialChars = Math.min(dialTotal, dialChars + 3);
-			return;
-		}
 		if (!hasAudio) return;
 
 		fileFrames++;
@@ -386,20 +359,6 @@ final class BbsVisualizer {
 			int row = 1 + rnd.nextInt(21);
 			scr.put(col, row, garbage.charAt(rnd.nextInt(garbage.length())), 9 + rnd.nextInt(7), BLACK);
 		}
-	}
-
-	private void drawDial() {
-		scr.clear(' ', LGRAY, BLACK);
-		int budget = dialChars;
-		int row = 1;
-		for (String line : DIAL_LINES) {
-			if (budget <= 0) break;
-			int take = Math.min(line.length(), budget);
-			scr.print(1, row, line.substring(0, take), LGRAY, BLACK);
-			budget -= line.length() + 4;
-			row++;
-		}
-		if (blink()) scr.put(1, Math.min(ROWS - 1, row), '▌', LGRAY, BLACK);
 	}
 
 	private void drawNoCarrier() {

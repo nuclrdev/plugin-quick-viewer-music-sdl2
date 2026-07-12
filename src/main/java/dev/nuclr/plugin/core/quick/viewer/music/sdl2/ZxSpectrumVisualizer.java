@@ -24,9 +24,7 @@ import sdl2.AudioRingBuffer;
  * hard-hatted miner who patrols it and jumps on every beat, sixteen
  * brick-tower VU bars with falling peak caps, and — as on the Manic Miner
  * title screen — a piano keyboard along the bottom whose keys light up with
- * the dominant pitches of the music. A new track "LOAD""s in exactly like a
- * SCREEN$: pixel thirds arrive in the Spectrum's interleaved scanline order
- * as black-on-white ghosts, then the attribute colours pop in afterwards.
+ * the dominant pitches of the music.
  * Prolonged silence drops to the boot screen — and eventually to the
  * heartbreak of {@code R Tape loading error, 0:1}.
  * <p>
@@ -114,11 +112,6 @@ final class ZxSpectrumVisualizer {
 	private float minerVx = 0.7f;
 	private float minerVy = 0f;
 
-	// ---- SCREEN$ loading sequence ----
-	private final int[] revealRank = new int[SCREEN_H];
-	private int pixelProgress = SCREEN_H;   // scanlines arrived (interleaved order)
-	private int attrProgress  = COLS * ROWS; // attribute cells coloured in
-
 	// ---- Border stripes ----
 	private float stripePos = 0f;
 
@@ -139,12 +132,6 @@ final class ZxSpectrumVisualizer {
 		for (int b = 1; b <= NUM_BARS; b++) {
 			if (barBin[b] <= barBin[b - 1]) barBin[b] = barBin[b - 1] + 1;
 		}
-		// The Spectrum's famous interleaved display file order: three 64-line
-		// thirds; within a third all first char-lines arrive, then all second...
-		for (int i = 0; i < SCREEN_H; i++) {
-			int third = i / 64, s = i % 64;
-			revealRank[third * 64 + (s % 8) * 8 + s / 8] = i;
-		}
 		for (int a = 0; a < 16; a++) {
 			for (int b = 0; b < 16; b++) {
 				int dr = ((PAL[a] >> 16) & 0xFF) - ((PAL[b] >> 16) & 0xFF);
@@ -155,11 +142,9 @@ final class ZxSpectrumVisualizer {
 		}
 	}
 
-	/** New tune: LOAD "" it — header line, interleaved pixel reveal, attributes last. */
+	/** New tune: straight onto the header line — no tape loading for quick previews. */
 	void setTrackTitle(String title) {
 		trackTitle = title == null ? "" : title;
-		pixelProgress = 0;
-		attrProgress  = 0;
 	}
 
 	// ---- Render entry ----
@@ -190,7 +175,6 @@ final class ZxSpectrumVisualizer {
 		} else {
 			drawScene(frameCount);
 			quantizeAttributes();
-			applyLoadingFilter();
 		}
 
 		drawBorder(g2, w, h, idle);
@@ -300,13 +284,6 @@ final class ZxSpectrumVisualizer {
 			minerY  += minerVy;
 			if (minerY >= PLATFORM_Y) { minerY = PLATFORM_Y; minerVy = 0f; }
 		}
-
-		// SCREEN$ load: pixels stream in first, attributes afterwards.
-		if (pixelProgress < SCREEN_H) {
-			pixelProgress = Math.min(SCREEN_H, pixelProgress + 3);
-		} else if (attrProgress < COLS * ROWS) {
-			attrProgress = Math.min(COLS * ROWS, attrProgress + 24);
-		}
 	}
 
 	// ---- Scene (drawn in full colour, then attribute-quantized) ----
@@ -410,10 +387,6 @@ final class ZxSpectrumVisualizer {
 		String title = trackTitle.isBlank() ? "tape 1" : trackTitle;
 		if (title.length() > 22) title = title.substring(0, 22);
 		g.drawString("Program: " + title, 4, 11);
-		// FLASH-attribute style cursor block while "loading".
-		if (attrProgress < COLS * ROWS && (frameCount / 16) % 2 == 0) {
-			g.fillRect(4 + (9 + title.length()) * 6 + 4, 3, 8, 10);
-		}
 	}
 
 	// ---- Idle: boot screen, then the heartbreak ----
@@ -493,29 +466,6 @@ final class ZxSpectrumVisualizer {
 		return best;
 	}
 
-	// ---- SCREEN$ loading filter: interleaved mono ghosts, then attributes ----
-
-	private void applyLoadingFilter() {
-		if (pixelProgress >= SCREEN_H && attrProgress >= COLS * ROWS) return;
-
-		for (int y = 0; y < SCREEN_H; y++) {
-			int rowBase = y * SCREEN_W;
-			if (revealRank[y] >= pixelProgress) {
-				// This scanline hasn't arrived from tape yet: blank paper.
-				java.util.Arrays.fill(px, rowBase, rowBase + SCREEN_W, WHITE);
-			} else if (attrProgress < (y / CELL) * COLS + COLS) {
-				// Pixels are in but this row's attributes may not be: mono ghost
-				// (ink on paper) for every cell still waiting for its colour byte.
-				int cellRowStart = (y / CELL) * COLS;
-				for (int x = 0; x < SCREEN_W; x++) {
-					if (cellRowStart + x / CELL >= attrProgress) {
-						px[rowBase + x] = (px[rowBase + x] & 0xFFFFFF) == BLACK ? WHITE : BLACK;
-					}
-				}
-			}
-		}
-	}
-
 	// ---- Border ----
 
 	private void drawBorder(Graphics2D g2, int w, int h, boolean idle) {
@@ -524,8 +474,7 @@ final class ZxSpectrumVisualizer {
 			g2.fillRect(0, 0, w, h);
 			return;
 		}
-		boolean loading = pixelProgress < SCREEN_H || attrProgress < COLS * ROWS;
-		stripePos += idle ? 0.5f : 1.2f + energy * 4f + treble * 5f + (loading ? 3f : 0f);
+		stripePos += idle ? 0.5f : 1.2f + energy * 4f + treble * 5f;
 
 		for (int y = 0; y < h; y += 2) {
 			int c;
