@@ -29,6 +29,8 @@ import sdl2.AudioRingBuffer;
  * the wave edges and motion-trail ghost frames.
  */
 public class WaveformPanel extends JPanel {
+	private static final long EFFECT_NAME_DURATION_NANOS = 4_000_000_000L;
+	private static final long EFFECT_NAME_FADE_NANOS = 600_000_000L;
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
 	public enum VisualizerMode {
@@ -123,6 +125,7 @@ public class WaveformPanel extends JPanel {
 	private int   frameCount = 0;
 	private boolean trackerBackdropEnabled = false;
 	private double playbackPositionSeconds = 0.0d;
+	private long effectNameVisibleUntil;
 	private String[][] trackerNotes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 	private String[][] trackerEffects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 
@@ -146,7 +149,9 @@ public class WaveformPanel extends JPanel {
 	public WaveformPanel() {
 		setOpaque(true);
 		setBackground(BG_BOTTOM);
+		setToolTipText("Right-click to change the visualizer effect");
 		installVisualizerMenu();
+		showEffectName();
 		animTimer = new Timer(16, e -> repaint()); // ~60 fps
 		animTimer.start();
 	}
@@ -175,20 +180,20 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem("Vectrex ✦ (Vector Glow)", mode == VisualizerMode.VECTREX);
 		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem("Game Boy ▦ (Falling Blocks)", mode == VisualizerMode.GAMEBOY);
 		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem("Macintosh ☺ (1-bit Dither)", mode == VisualizerMode.MAC);
-		aurora.addActionListener(e -> { mode = VisualizerMode.AURORA; repaint(); });
-		spectrumItem.addActionListener(e -> { mode = VisualizerMode.SPECTRUM; repaint(); });
-		reactorItem.addActionListener(e -> { mode = VisualizerMode.REACTOR; repaint(); });
-		demosceneItem.addActionListener(e -> { mode = VisualizerMode.DEMOSCENE; repaint(); });
-		infernoItem.addActionListener(e -> { mode = VisualizerMode.INFERNO; repaint(); });
-		amigaItem.addActionListener(e -> { mode = VisualizerMode.AMIGA; repaint(); });
-		zxItem.addActionListener(e -> { mode = VisualizerMode.ZX; repaint(); });
-		dosItem.addActionListener(e -> { mode = VisualizerMode.DOS; repaint(); });
-		bbsItem.addActionListener(e -> { mode = VisualizerMode.BBS; repaint(); });
-		dendyItem.addActionListener(e -> { mode = VisualizerMode.DENDY; repaint(); });
-		c64Item.addActionListener(e -> { mode = VisualizerMode.C64; repaint(); });
-		vectrexItem.addActionListener(e -> { mode = VisualizerMode.VECTREX; repaint(); });
-		gameboyItem.addActionListener(e -> { mode = VisualizerMode.GAMEBOY; repaint(); });
-		macItem.addActionListener(e -> { mode = VisualizerMode.MAC; repaint(); });
+		aurora.addActionListener(e -> selectMode(VisualizerMode.AURORA));
+		spectrumItem.addActionListener(e -> selectMode(VisualizerMode.SPECTRUM));
+		reactorItem.addActionListener(e -> selectMode(VisualizerMode.REACTOR));
+		demosceneItem.addActionListener(e -> selectMode(VisualizerMode.DEMOSCENE));
+		infernoItem.addActionListener(e -> selectMode(VisualizerMode.INFERNO));
+		amigaItem.addActionListener(e -> selectMode(VisualizerMode.AMIGA));
+		zxItem.addActionListener(e -> selectMode(VisualizerMode.ZX));
+		dosItem.addActionListener(e -> selectMode(VisualizerMode.DOS));
+		bbsItem.addActionListener(e -> selectMode(VisualizerMode.BBS));
+		dendyItem.addActionListener(e -> selectMode(VisualizerMode.DENDY));
+		c64Item.addActionListener(e -> selectMode(VisualizerMode.C64));
+		vectrexItem.addActionListener(e -> selectMode(VisualizerMode.VECTREX));
+		gameboyItem.addActionListener(e -> selectMode(VisualizerMode.GAMEBOY));
+		macItem.addActionListener(e -> selectMode(VisualizerMode.MAC));
 		group.add(vectrexItem);
 		group.add(c64Item);
 		group.add(gameboyItem);
@@ -219,6 +224,35 @@ public class WaveformPanel extends JPanel {
 		menu.add(reactorItem);
 
 		setComponentPopupMenu(menu);
+	}
+
+	private void selectMode(VisualizerMode selectedMode) {
+		mode = selectedMode;
+		showEffectName();
+		repaint();
+	}
+
+	private void showEffectName() {
+		effectNameVisibleUntil = System.nanoTime() + EFFECT_NAME_DURATION_NANOS;
+	}
+
+	private static String effectName(VisualizerMode selectedMode) {
+		return switch (selectedMode) {
+			case AURORA -> "Aurora Mirror Wave";
+			case SPECTRUM -> "Neon Spectrum Bars";
+			case REACTOR -> "Reactor Core";
+			case DEMOSCENE -> "Assembly Demoscene";
+			case INFERNO -> "id Inferno";
+			case AMIGA -> "Amiga Cracktro";
+			case ZX -> "ZX Spectrum";
+			case DOS -> "Norton Commander";
+			case BBS -> "BBS / ANSI";
+			case DENDY -> "Dendy";
+			case C64 -> "C64 PETSCII";
+			case VECTREX -> "Vectrex";
+			case GAMEBOY -> "Game Boy";
+			case MAC -> "Macintosh";
+		};
 	}
 
 	public void setRingBuffer(AudioRingBuffer buf) {
@@ -303,6 +337,59 @@ public class WaveformPanel extends JPanel {
 	}
 
 	// ---- Paint ----
+	@Override
+	public void paint(Graphics g) {
+		super.paint(g);
+		paintEffectName(g);
+	}
+
+	private void paintEffectName(Graphics g) {
+		long remaining = effectNameVisibleUntil - System.nanoTime();
+		if (remaining <= 0L) {
+			return;
+		}
+
+		float alpha = remaining < EFFECT_NAME_FADE_NANOS
+				? Math.max(0f, remaining / (float) EFFECT_NAME_FADE_NANOS)
+				: 1f;
+		Graphics2D overlay = (Graphics2D) g.create();
+		try {
+			overlay.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			overlay.setComposite(java.awt.AlphaComposite.SrcOver.derive(alpha));
+			overlay.setFont(getFont().deriveFont(Font.BOLD, 11f));
+
+			FontMetrics metrics = overlay.getFontMetrics();
+			int maxTextWidth = getWidth() - 28;
+			if (maxTextWidth < metrics.stringWidth("...") + 4) {
+				return;
+			}
+			String label = fitText(effectName(mode), metrics, maxTextWidth);
+			int textWidth = metrics.stringWidth(label);
+			int boxWidth = textWidth + 16;
+			int boxHeight = metrics.getHeight() + 8;
+			int x = 10;
+			int y = 10;
+
+			overlay.setColor(new Color(5, 7, 12, 190));
+			overlay.fillRoundRect(x, y, boxWidth, boxHeight, 8, 8);
+			overlay.setColor(new Color(239, 244, 252));
+			overlay.drawString(label, x + 8, y + 4 + metrics.getAscent());
+		} finally {
+			overlay.dispose();
+		}
+	}
+
+	private static String fitText(String text, FontMetrics metrics, int maxWidth) {
+		if (metrics.stringWidth(text) <= maxWidth) {
+			return text;
+		}
+		String suffix = "...";
+		int end = text.length();
+		while (end > 0 && metrics.stringWidth(text.substring(0, end) + suffix) > maxWidth) {
+			end--;
+		}
+		return text.substring(0, end) + suffix;
+	}
 
 	@Override
 	protected void paintComponent(Graphics g) {
