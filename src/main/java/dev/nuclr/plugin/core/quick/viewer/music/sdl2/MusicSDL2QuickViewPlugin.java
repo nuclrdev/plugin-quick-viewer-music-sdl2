@@ -1,6 +1,7 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JComponent;
@@ -12,6 +13,8 @@ import dev.nuclr.platform.plugin.QuickViewNuclrPlugin;
 import sdl2.NativeLibExtractor;
 
 public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
+	private static final String PLUGIN_DISABLE_EVENT = "plugin.disable";
+	private static final String PLUGIN_ID_KEY = "pluginId";
 
 	private NuclrPluginContext context;
 	private MusicSDl2ViewPanel panel;
@@ -21,9 +24,17 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 	@Override
 	public JComponent panel() {
 		if (this.panel == null) {
-			this.panel = new MusicSDl2ViewPanel();
+			this.panel = new MusicSDl2ViewPanel(this::disablePlugin);
 		}
 		return panel;
+	}
+
+	private void disablePlugin() {
+		NuclrPluginContext currentContext = context;
+		if (currentContext == null || currentContext.getEventBus() == null) {
+			return;
+		}
+		currentContext.getEventBus().emit(this, PLUGIN_DISABLE_EVENT, Map.of(PLUGIN_ID_KEY, id()));
 	}
 
 	@Override

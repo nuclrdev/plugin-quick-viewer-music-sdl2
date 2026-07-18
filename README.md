@@ -50,10 +50,10 @@ Windows native libraries are bundled with the plugin and extracted automatically
 ### macOS 🍎
 
 ```bash
-brew install sdl2 sdl2_mixer
+brew install sdl2_mixer
 ```
 
-The plugin auto-detects standard Homebrew library locations (`/opt/homebrew/lib`, `/usr/local/lib`, `/opt/local/lib`). For a custom location, launch the JVM with:
+The `sdl2_mixer` formula installs the SDL2 compatibility runtime and codec dependencies. The plugin auto-detects standard Homebrew library locations (`/opt/homebrew/lib`, `/usr/local/lib`, `/opt/local/lib`). For a custom location, launch the JVM with:
 
 ```bash
 -Djna.library.path=/path/to/libs

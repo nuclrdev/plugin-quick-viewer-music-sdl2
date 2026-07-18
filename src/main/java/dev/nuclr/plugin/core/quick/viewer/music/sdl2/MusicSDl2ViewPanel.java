@@ -83,11 +83,17 @@ public class MusicSDl2ViewPanel extends JPanel {
 	private JSlider volumeSlider;
 	private JLabel volumeLabel;
 	private JCheckBox loopCheckBox;
+	private final Runnable disablePlugin;
 
 	/** Whether playback loops indefinitely. Defaults to on. */
 	private boolean loopEnabled = true;
 
 	public MusicSDl2ViewPanel() {
+		this(null);
+	}
+
+	public MusicSDl2ViewPanel(Runnable disablePlugin) {
+		this.disablePlugin = disablePlugin;
 		bgColor       = uiColor("Panel.background",          new Color(0x14, 0x17, 0x1F));
 		accentColor   = uiColor("Component.accentColor",     new Color(0x4E, 0x9A, 0xE1));
 		textPrimary   = uiColor("Label.foreground",          new Color(0xD2, 0xDA, 0xE8));
@@ -386,7 +392,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		// Check before touching SDLMixerAudio: loading it without the native libraries fails
 		// inside a static initializer, which no catch below could report usefully.
 		if (!Sdl2Support.isAvailable()) {
-			Sdl2Support.showMissingLibraryDialog(this);
+			Sdl2Support.showMissingLibraryDialog(this, disablePlugin);
 			trackNameLabel.setText("SDL2 audio libraries missing");
 			trackInfoLabel.setText(Sdl2Support.shortHint());
 			waveformPanel.clearTrackerBackdrop();
@@ -438,7 +444,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			// it surfaces as an ExceptionInInitializerError/NoClassDefFoundError from the JNA
 			// interfaces, which is an Error and would otherwise sail past the catch below.
 			log.error("SDL2 native libraries could not be initialised", e);
-			Sdl2Support.showMissingLibraryDialog(this);
+			Sdl2Support.showMissingLibraryDialog(this, disablePlugin);
 			trackNameLabel.setText("SDL2 audio libraries missing");
 			trackInfoLabel.setText(Sdl2Support.shortHint());
 			waveformPanel.clearTrackerBackdrop();

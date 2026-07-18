@@ -1,13 +1,16 @@
 package sdl2;
 
 import java.awt.Component;
+import java.awt.Desktop;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import javax.swing.JEditorPane;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.event.HyperlinkEvent;
 
 import com.sun.jna.NativeLibrary;
 
@@ -26,6 +29,15 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class Sdl2Support {
+	private static final String SDL_INSTALL_URL = "https://wiki.libsdl.org/SDL2/Installation";
+	private static final String HOMEBREW_URL = "https://brew.sh/";
+	private static final String HOMEBREW_MIXER_URL = "https://formulae.brew.sh/formula/sdl2_mixer";
+	private static final String UBUNTU_MIXER_URL = "https://packages.ubuntu.com/search?keywords=libsdl2-mixer-2.0-0";
+	private static final String FEDORA_MIXER_URL = "https://packages.fedoraproject.org/pkgs/SDL2_mixer/SDL2_mixer/";
+	private static final String ARCH_MIXER_URL = "https://archlinux.org/packages/extra/x86_64/sdl2_mixer/";
+	private static final String OPENSUSE_MIXER_URL = "https://software.opensuse.org/package/SDL2_mixer";
+	private static final String PLUGIN_HELP_URL =
+			"https://nuclr.dev/plugins/core/music-sdl2-quick-viewer.html";
 
 	private static Boolean available;
 
@@ -62,92 +74,147 @@ public final class Sdl2Support {
 
 	/** One-line summary for the quick-view panel. */
 	public static String shortHint() {
-		return "SDL2 and SDL2_mixer are not installed — see the instructions.";
+		return "Install SDL2/SDL2_mixer or disable this plugin.";
 	}
 
 	/**
-	 * Tell the user which packages to install, with the command for the platform they are on.
-	 * Shown on the EDT; safe to call from the quick-view loader thread.
+	 * Tell the user which packages to install, with official links and the command for the platform
+	 * they are on. Shown on the EDT; safe to call from the quick-view loader thread.
+	 *
+	 * @param parent        component used to position the dialog
+	 * @param disablePlugin disables this plugin in the commander; may be {@code null}
 	 */
-	public static void showMissingLibraryDialog(Component parent) {
+	public static void showMissingLibraryDialog(Component parent, Runnable disablePlugin) {
 
-		final String command = installCommand();
-		final String message = ""
-				+ "This player needs the SDL2 audio libraries, which are not installed.\n\n"
-				+ "Install them with:\n\n"
-				+ "    " + command + "\n\n"
-				+ alternatives()
-				+ "\nThen restart Nuclr.";
+		final InstallationHelp help = installationHelp();
 
 		SwingUtilities.invokeLater(() -> {
-			Object[] options = { "Copy command", "Close" };
+			JEditorPane message = createMessage(help);
+			Object[] options = help.command() == null
+					? new Object[] { "Disable plugin", "Not now" }
+					: new Object[] { "Copy install command", "Disable plugin", "Not now" };
 			int choice = JOptionPane.showOptionDialog(
 					parent != null && parent.isShowing() ? parent : null,
 					message,
-					"SDL2 audio libraries missing",
+					"SDL2 audio support is unavailable",
 					JOptionPane.DEFAULT_OPTION,
 					JOptionPane.WARNING_MESSAGE,
 					null,
 					options,
-					options[1]);
+					options[options.length - 1]);
 
-			if (choice == 0) {
-				copyToClipboard(command);
+			if (help.command() != null && choice == 0) {
+				copyToClipboard(help.command());
+				return;
+			}
+			int disableChoice = help.command() == null ? 0 : 1;
+			if (choice == disableChoice && disablePlugin != null) {
+				disablePlugin.run();
 			}
 		});
 	}
 
-	/** The install command for this platform, picked from the package manager actually present. */
-	private static String installCommand() {
-
+	private static InstallationHelp installationHelp() {
 		if (isMac()) {
-			return "brew install sdl2 sdl2_mixer";
+			return new InstallationHelp(
+					"macOS",
+					"The macOS plugin does not bundle native SDL libraries. Install SDL2_mixer "
+							+ "with Homebrew; its formula also installs the SDL2 compatibility runtime and codecs.",
+					"brew install sdl2_mixer",
+					links(
+							link(HOMEBREW_URL, "Install Homebrew"),
+							link(HOMEBREW_MIXER_URL, "SDL2_mixer formula"),
+							link(SDL_INSTALL_URL, "SDL installation guide")));
 		}
 
 		if (isWindows()) {
-			// The DLLs ship with the plugin, so reaching this means the install is damaged.
-			return "reinstall the SDL2 music plugin";
+			return new InstallationHelp(
+					"Windows",
+					"The required DLLs are included with this plugin, but they could not be loaded. "
+							+ "Reinstall the plugin and check whether security software quarantined one of its DLLs.",
+					null,
+					links(link(PLUGIN_HELP_URL, "Plugin help")));
 		}
 
-		if (hasCommand("apt")) {
-			return "sudo apt install libsdl2-2.0-0 libsdl2-mixer-2.0-0";
+		if (hasCommand("apt") || hasCommand("apt-get")) {
+			String apt = hasCommand("apt") ? "apt" : "apt-get";
+			return linuxHelp(
+					"sudo " + apt + " install libsdl2-2.0-0 libsdl2-mixer-2.0-0",
+					link(UBUNTU_MIXER_URL, "Ubuntu package information"));
 		}
 		if (hasCommand("dnf")) {
-			return "sudo dnf install SDL2 SDL2_mixer";
+			return linuxHelp(
+					"sudo dnf install SDL2 SDL2_mixer",
+					link(FEDORA_MIXER_URL, "Fedora package information"));
 		}
 		if (hasCommand("pacman")) {
-			return "sudo pacman -S sdl2 sdl2_mixer";
+			return linuxHelp(
+					"sudo pacman -S sdl2-compat sdl2_mixer",
+					link(ARCH_MIXER_URL, "Arch package information"));
 		}
 		if (hasCommand("zypper")) {
-			return "sudo zypper install libSDL2-2_0-0 libSDL2_mixer-2_0-0";
+			return linuxHelp(
+					"sudo zypper install libSDL2-2_0-0 libSDL2_mixer-2_0-0",
+					link(OPENSUSE_MIXER_URL, "openSUSE package information"));
 		}
 
-		return "install the SDL2 and SDL2_mixer packages for your distribution";
+		return new InstallationHelp(
+				"Linux",
+				"This plugin does not bundle native libraries on Linux. Install the SDL2 runtime and "
+						+ "SDL2_mixer packages supplied by your distribution, then restart Nuclr.",
+				null,
+				links(link(SDL_INSTALL_URL, "SDL installation guide")));
 	}
 
-	/** The commands for the platforms we did not detect, so the message still helps if the guess is off. */
-	private static String alternatives() {
+	private static InstallationHelp linuxHelp(String command, String packageLink) {
+		return new InstallationHelp(
+				"Linux",
+				"This plugin does not bundle native libraries on Linux. Install the SDL2 runtime and "
+						+ "SDL2_mixer packages with your distribution's package manager.",
+				command,
+				links(packageLink, link(SDL_INSTALL_URL, "SDL installation guide")));
+	}
 
-		if (isWindows()) {
-			return "";
-		}
+	private static JEditorPane createMessage(InstallationHelp help) {
+		String command = help.command() == null ? "" : "<p>Run in a terminal:</p>"
+				+ "<p style='margin-left:12px;font-family:monospace;'><b>"
+				+ html(help.command()) + "</b></p>";
+		String customPath = "Windows".equals(help.platform()) ? "" : "<p>If the libraries are "
+				+ "already installed in a custom location, start Nuclr with "
+				+ "<code>-Djna.library.path=/path/to/libs</code>.</p>";
+		String content = "<html><body style='font-family:sans-serif;width:520px;'>"
+				+ "<h2>" + html(help.platform()) + " setup required</h2>"
+				+ "<p>Nuclr could not load <b>SDL2</b> and <b>SDL2_mixer</b>.</p>"
+				+ "<p>" + html(help.explanation()) + "</p>"
+				+ command
+				+ "<p>" + help.linksHtml() + "</p>"
+				+ customPath
+				+ "<p>Restart Nuclr after installing the libraries. If you do not need this music "
+				+ "viewer, you can disable it now and enable it later from Plugins.</p>"
+				+ "</body></html>";
 
-		var sb = new StringBuilder("On other systems:\n");
+		JEditorPane message = new JEditorPane("text/html", content);
+		message.setEditable(false);
+		message.setOpaque(false);
+		message.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+		message.addHyperlinkListener(event -> {
+			if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED && event.getURL() != null) {
+				openLink(event.getURL().toExternalForm());
+			}
+		});
+		return message;
+	}
 
-		if (!isMac()) {
-			sb.append("    macOS:            brew install sdl2 sdl2_mixer\n");
-		}
-		if (!hasCommand("apt")) {
-			sb.append("    Debian/Ubuntu:    sudo apt install libsdl2-2.0-0 libsdl2-mixer-2.0-0\n");
-		}
-		if (!hasCommand("dnf")) {
-			sb.append("    Fedora:           sudo dnf install SDL2 SDL2_mixer\n");
-		}
-		if (!hasCommand("pacman")) {
-			sb.append("    Arch:             sudo pacman -S sdl2 sdl2_mixer\n");
-		}
+	private static String link(String url, String label) {
+		return "<a href='" + url + "'>" + html(label) + "</a>";
+	}
 
-		return sb.toString();
+	private static String links(String... links) {
+		return String.join(" &nbsp;|&nbsp; ", links);
+	}
+
+	private static String html(String text) {
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
 	private static boolean hasCommand(String name) {
@@ -179,11 +246,27 @@ public final class Sdl2Support {
 		}
 	}
 
+	private static void openLink(String url) {
+		try {
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+				Desktop.getDesktop().browse(java.net.URI.create(url));
+			} else {
+				copyToClipboard(url);
+			}
+		} catch (Exception e) {
+			log.warn("Could not open help link [{}]: {}", url, e.getMessage());
+			copyToClipboard(url);
+		}
+	}
+
 	private static boolean isMac() {
 		return System.getProperty("os.name", "").toLowerCase().contains("mac");
 	}
 
 	private static boolean isWindows() {
 		return System.getProperty("os.name", "").toLowerCase().contains("win");
+	}
+
+	private record InstallationHelp(String platform, String explanation, String command, String linksHtml) {
 	}
 }
