@@ -61,8 +61,8 @@ public final class Sdl2Support {
 
 	private static boolean probe() {
 		try {
-			NativeLibrary.getInstance("SDL2");
-			NativeLibrary.getInstance("SDL2_mixer");
+			NativeLibrary.getInstance(Sdl2LibraryNames.SDL2);
+			NativeLibrary.getInstance(Sdl2LibraryNames.SDL2_MIXER);
 			return true;
 		} catch (Throwable t) {
 			// UnsatisfiedLinkError when a library is missing, but a broken or half-installed

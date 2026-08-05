@@ -29,7 +29,7 @@ public class SDLMixerAudio {
 	    
     // SDL2 library interface (separate from SDL2_mixer)
     public interface SDL2 extends Library {
-        SDL2 INSTANCE = Native.load("SDL2", SDL2.class,
+        SDL2 INSTANCE = Native.load(Sdl2LibraryNames.SDL2, SDL2.class,
                 Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
         
         // SDL structures
@@ -70,7 +70,7 @@ public class SDLMixerAudio {
     
     // SDL_Mixer library interface
     public interface SDLMixer extends Library {
-        SDLMixer INSTANCE = Native.load("SDL2_mixer", SDLMixer.class,
+        SDLMixer INSTANCE = Native.load(Sdl2LibraryNames.SDL2_MIXER, SDLMixer.class,
                 Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
         
         // SDL_Mixer functions

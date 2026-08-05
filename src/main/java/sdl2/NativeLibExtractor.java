@@ -186,8 +186,8 @@ public class NativeLibExtractor {
 	}
 
 	private static void addJnaSearchPath(String dir) {
-		NativeLibrary.addSearchPath("SDL2", dir);
-		NativeLibrary.addSearchPath("SDL2_mixer", dir);
+		NativeLibrary.addSearchPath(Sdl2LibraryNames.SDL2, dir);
+		NativeLibrary.addSearchPath(Sdl2LibraryNames.SDL2_MIXER, dir);
 	}
 
 	private static void preloadExistingLibraries(String[] libraryPaths) {

@@ -51,8 +51,8 @@ public class SDLDiagnostic {
         
         // Try to load libraries
         System.out.println("Attempting to load libraries:");
-        tryLoadLibrary("SDL2");
-        tryLoadLibrary("SDL2_mixer");
+        tryLoadLibrary(Sdl2LibraryNames.SDL2);
+        tryLoadLibrary(Sdl2LibraryNames.SDL2_MIXER);
         
         // Suggestions
         System.out.println("\n=== Suggestions ===");

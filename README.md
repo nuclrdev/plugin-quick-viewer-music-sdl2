@@ -43,6 +43,9 @@ A rich audio quick viewer plugin for **Nuclr Commander**. It opens music files d
 
 This plugin depends on **SDL2** and **SDL2_mixer**.
 
+On Linux, the plugin loads the versioned runtime SONAMEs (`libSDL2-2.0.so.0`
+and `libSDL2_mixer-2.0.so.0`), so the development packages are not required.
+
 ### Windows 🪟
 
 Windows native libraries are bundled with the plugin and extracted automatically at runtime. No extra installation needed.
