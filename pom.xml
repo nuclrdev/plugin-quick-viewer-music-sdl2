@@ -13,8 +13,8 @@
 	<name>Nuclr Quick View - Music/Sound Player (SDL2)</name>
 
 	<properties>
-		<maven.compiler.source>21</maven.compiler.source>
-		<maven.compiler.target>21</maven.compiler.target>
+		<maven.compiler.source>25</maven.compiler.source>
+		<maven.compiler.target>25</maven.compiler.target>
 		<jarsigner.keystorepath>C:/nuclr/key/nuclr-signing.p12</jarsigner.keystorepath>
 		<jarsigner.keyalias>nuclr</jarsigner.keyalias>
 	</properties>
@@ -24,7 +24,7 @@
 		<dependency>
 			<groupId>dev.nuclr</groupId>
 			<artifactId>platform-sdk</artifactId>
-			<version>3.0.1</version>
+			<version>4.0.0</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -32,7 +32,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.42</version>
+			<version>1.18.46</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -44,9 +44,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
+			<groupId>tools.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>2.21.1</version>
+			<version>3.2.1</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -73,24 +73,40 @@
 	</dependencies>
 
 	<build>
+		<!-- plugin.json declares the plugin version, so Maven substitutes it from
+		     the project version rather than it being maintained by hand. Nothing
+		     else is filtered: these bundles also carry icons and native libraries. -->
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
 				<includes>
-					<include>plugin.properties</include>
+					<include>plugin.json</include>
 				</includes>
 			</resource>
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>false</filtering>
 				<excludes>
-					<exclude>plugin.properties</exclude>
+					<exclude>plugin.json</exclude>
 				</excludes>
 			</resource>
 		</resources>
-
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.13.0</version>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+							<version>1.18.46</version>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
 
 			<!-- Build the plugin jar (normal jar) -->
 			<plugin>
@@ -132,14 +148,14 @@
 				</executions>
 			</plugin>
 
-			<!-- Copy plugin jar + plugin.json into target/plugin (zip root) -->
+			<!-- Copy plugin resources and jar into target/plugin (zip root) -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
 				<version>3.3.1</version>
 				<executions>
 					<execution>
-						<id>copy-plugin-json</id>
+						<id>copy-plugin-resources</id>
 						<phase>package</phase>
 						<goals>
 							<goal>copy-resources</goal>
@@ -148,7 +164,7 @@
 							<outputDirectory>${project.build.directory}/plugin</outputDirectory>
 							<resources>
 								<resource>
-									<directory>src/main/resources</directory>
+									<directory>${project.build.outputDirectory}</directory>
 									<includes>
 										<include>plugin.json</include>
 										<include>LICENSE</include>
@@ -247,7 +263,7 @@ log.info("Signed: ${zipFile.name} -> ${sigFile.name}")
 					<dependency>
 						<groupId>org.apache.groovy</groupId>
 						<artifactId>groovy</artifactId>
-						<version>4.0.24</version>
+						<version>5.0.8</version>
 					</dependency>
 				</dependencies>
 			</plugin>
