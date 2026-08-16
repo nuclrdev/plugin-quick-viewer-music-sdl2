@@ -13,8 +13,8 @@
 			"author": "Nuclr Development Team",
 			"license": "Apache-2.0",
 			"website": "https://nuclr.dev",
-			"pageUrl": "https://nuclr.dev/plugins/core/music-sdl2-quick-viewer.html",
-			"docUrl": "https://nuclr.dev/plugins/core/music-sdl2-quick-viewer.html",
+			"pageUrl": "https://github.com/nuclrdev/plugin-quick-viewer-music-sdl2",
+			"docUrl": "https://github.com/nuclrdev/plugin-quick-viewer-music-sdl2",
 			"developer": "Official",
 			"singleton": true,
 			"priority": 1
