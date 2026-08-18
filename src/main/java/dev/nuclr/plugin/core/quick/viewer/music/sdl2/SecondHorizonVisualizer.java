@@ -17,24 +17,23 @@ import java.util.Random;
 import sdl2.AudioRingBuffer;
 
 /**
- * "Second Reality" visualizer — a tribute to Future Crew's <i>Unreal ][ – The 2nd Reality</i>
- * (Assembly 1993).
+ * "Second Horizon" visualizer — an original piece in the house style of the 1993 PC demo, built
+ * from the era's stock effects and none of anyone else's pixels.
  * <p>
- * The original was not one effect but a <b>sequence of parts</b>, and its party trick was that
- * those parts were cut to the music at a time when almost nothing else was. This visualizer works
- * the same way: six scenes run one after another, and a scene only hands over to the next
- * <em>on a kick drum</em>, once it has had its minimum time on screen — so the whole show breathes
- * with the tune.
+ * A demo of that period was never one effect but a <b>sequence of parts</b>, and the good ones cut
+ * those parts to the music at a time when almost nothing else did. This visualizer works the same
+ * way: six scenes run one after another, and a scene only hands over to the next <em>on a kick
+ * drum</em>, once it has had its minimum time on screen — so the whole show breathes with the tune.
  * <ol>
- *   <li><b>Starfield</b> — the stars-toward-the-viewer part the original showed for the {@code u}
- *       command-line argument, with the group logo zooming in.</li>
+ *   <li><b>Starfield</b> — stars flying at the viewer, with the group logo zooming in. Demos of
+ *       the day took a command-line argument to jump straight to a part; so does the HUD here.</li>
  *   <li><b>Glenz vectors</b> — a translucent rotating solid over copper bars, the 1993 way of
  *       proving your 486 could do real-time 3D.</li>
  *   <li><b>Moire</b> — three interfering ring fields, XOR-combined through a cycling palette.</li>
  *   <li><b>Dot morph</b> — a dot object melting between sphere, torus and tunnel, over its own
  *       phosphor trails.</li>
  *   <li><b>Warp &amp; scale</b> — a perspective checkerboard plane under a bitmap logo warped and
- *       scaled column by column: the "scaling and warping of images" the demo was known for.</li>
+ *       scaled column by column, the way a still image was made to ripple back then.</li>
  *   <li><b>Kefrens finale</b> — the scanline bar cascade, a sine scroller, and a live oscilloscope
  *       trace of what SDL is actually playing.</li>
  * </ol>
@@ -43,9 +42,9 @@ import sdl2.AudioRingBuffer;
  * Vectors, text and the scope go on top with Java2D. Tables, palettes, star and dot arrays are all
  * pre-allocated, so a frame allocates next to nothing and the EDT stays at 60 fps.
  *
- * @see WaveformPanel.VisualizerMode#SECOND_REALITY
+ * @see WaveformPanel.VisualizerMode#SECOND_HORIZON
  */
-final class SecondRealityVisualizer {
+final class SecondHorizonVisualizer {
 
 	// ---- Analysis ----
 	private static final int   FFT_SIZE    = 1024;
@@ -78,7 +77,7 @@ final class SecondRealityVisualizer {
 	private static final String[] SCENE_NAMES = {
 			"STARFIELD", "GLENZ VECTORS", "MOIRE", "DOT MORPH", "WARP & SCALE", "KEFRENS"
 	};
-	/** The original took 2-5 to start from a given part, and "u" for the starfield. */
+	/** Period demos took a digit to start from a given part, and a letter for the bonus one. */
 	private static final String[] SCENE_ARGS = { "u", "2", "3", "4", "5", "" };
 
 	// ---- Starfield ----
@@ -92,10 +91,10 @@ final class SecondRealityVisualizer {
 
 	// ---- Scroller ----
 	private static final String GREETINGS =
-			"FUTURE CREW - UNREAL ][ - THE 2ND REALITY - ASSEMBLY 1993   ...   "
-			+ "SIX PARTS, CUT TO THE MUSIC, THE WAY THEY DID IT   ...   "
-			+ "CODE: PSI, TRUG, WILDFIRE - GRAPHICS: PIXEL, MARVEL - MUSIC: PURPLE MOTION & SKAVEN   ...   "
-			+ "TESTED ON A 486 DX2/66 WITH A GRAVIS ULTRASOUND, YOUR MILEAGE MAY VARY   ...   "
+			"NUCLR CREW - SURREAL ][ - THE 2ND HORIZON - MODE 13H, 1993   ...   "
+			+ "SIX PARTS, EVERY ONE OF THEM CUT TO THE MUSIC, THE WAY IT WAS DONE   ...   "
+			+ "CODE, GRAPHICS AND QUESTIONABLE IDEAS: THE USUAL SUSPECTS   ...   "
+			+ "TESTED ON A 486 DX2/66 WITH A 16-BIT WAVETABLE CARD, YOUR MILEAGE MAY VARY   ...   "
 			+ "NO GPU WAS HARMED IN THE MAKING OF THIS SCROLLER, EVERY PIXEL IS PLOTTED BY HAND   ...   "
 			+ "GREETINGS TO EVERY SCENER STILL COUNTING SCANLINES   ...   ";
 
@@ -209,7 +208,7 @@ final class SecondRealityVisualizer {
 
 	private final Random rnd = new Random(0x2DEC1993L);
 
-	SecondRealityVisualizer() {
+	SecondHorizonVisualizer() {
 		for (int i = 0; i < FFT_SIZE; i++) {
 			hann[i] = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FFT_SIZE - 1)));
 		}
@@ -287,7 +286,7 @@ final class SecondRealityVisualizer {
 		sceneFrame++;
 	}
 
-	/** A part hands over on a kick once it has had its time — that is the whole Second Reality trick. */
+	/** A part hands over on a kick once it has had its time — that is the whole trick of the form. */
 	private void advanceScene() {
 		boolean onCue = sceneFrame > SCENE_MIN_FRAMES && beatNow;
 		if (!onCue && sceneFrame <= SCENE_MAX_FRAMES) {
@@ -398,7 +397,7 @@ final class SecondRealityVisualizer {
 	}
 
 	// =========================================================================
-	// Scene 1 — starfield ("SECOND.EXE u")
+	// Scene 1 — starfield ("HORIZON.EXE u")
 	// =========================================================================
 
 	/** Stars flying at the viewer, streaked when the kick pushes the warp up. */
@@ -465,14 +464,14 @@ final class SecondRealityVisualizer {
 		float a3 = window(sceneFrame, 440, Integer.MAX_VALUE - 1, 40);
 
 		if (a1 > 0f) {
-			drawGlowText(g2, "FUTURE CREW", bigFont, w * 0.5f, h * 0.48f, a1, 1f + flash * 0.10f);
+			drawGlowText(g2, "NUCLR CREW", bigFont, w * 0.5f, h * 0.48f, a1, 1f + flash * 0.10f);
 		}
 		if (a2 > 0f) {
 			drawGlowText(g2, "p r e s e n t s", midFont, w * 0.5f, h * 0.50f, a2, 1f);
 		}
 		if (a3 > 0f) {
-			drawGlowText(g2, "UNREAL ][", midFont, w * 0.5f, h * 0.40f, a3, 1f);
-			drawGlowText(g2, "THE 2ND REALITY", bigFont, w * 0.5f, h * 0.58f, a3, 1f + flash * 0.14f);
+			drawGlowText(g2, "SURREAL ][", midFont, w * 0.5f, h * 0.40f, a3, 1f);
+			drawGlowText(g2, "THE 2ND HORIZON", bigFont, w * 0.5f, h * 0.58f, a3, 1f + flash * 0.14f);
 		}
 	}
 
@@ -844,12 +843,12 @@ final class SecondRealityVisualizer {
 		}
 	}
 
-	/** Render "2ND REALITY" once into a small ARGB raster; the warp then only copies pixels. */
+	/** Render "2ND HORIZON" once into a small ARGB raster; the warp then only copies pixels. */
 	private void ensureLogo(int targetW) {
 		if (logoImg != null && logoBuiltFor == targetW) return;
 		logoBuiltFor = targetW;
 
-		String text = "2ND REALITY";
+		String text = "2ND HORIZON";
 		Font   base = new Font(Font.MONOSPACED, Font.BOLD, 64);
 
 		BufferedImage probe = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -984,8 +983,8 @@ final class SecondRealityVisualizer {
 	}
 
 	private void drawFinaleLogo(Graphics2D g2, int w, int h) {
-		drawGlowText(g2, "THE 2ND REALITY", midFont, w * 0.5f, h * 0.17f, 1f, 1f + flash * 0.16f);
-		drawGlowText(g2, "FUTURE CREW  1993", smallFont, w * 0.5f, h * 0.29f, 0.75f, 1f);
+		drawGlowText(g2, "THE 2ND HORIZON", midFont, w * 0.5f, h * 0.17f, 1f, 1f + flash * 0.16f);
+		drawGlowText(g2, "NUCLR CREW  1993", smallFont, w * 0.5f, h * 0.29f, 0.75f, 1f);
 	}
 
 	// =========================================================================
@@ -1023,8 +1022,8 @@ final class SecondRealityVisualizer {
 
 	/**
 	 * Part counter, beat-sync tell-tale, and — for the first couple of seconds of every part — the
-	 * DOS command line that would have started it, since the original took 2-5 (and "u") to jump
-	 * straight to a given effect.
+	 * DOS command line that would have started it, back when a demo let you skip straight to the
+	 * part you wanted.
 	 */
 	private void drawHud(Graphics2D g2, int w, int h, int frameCount) {
 
@@ -1055,7 +1054,7 @@ final class SecondRealityVisualizer {
 		float a = window(sceneFrame, 0, 150, 30);
 		if (a > 0.01f) {
 			String arg  = SCENE_ARGS[scene];
-			String line = "C:\\FC\\2ND>SECOND.EXE" + (arg.isEmpty() ? "" : " " + arg)
+			String line = "C:\\DEMOS\\2ND>HORIZON.EXE" + (arg.isEmpty() ? "" : " " + arg)
 					+ ((frameCount / 16) % 2 == 0 ? "_" : " ");
 			Composite old = g2.getComposite();
 			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));

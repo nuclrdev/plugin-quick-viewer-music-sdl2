@@ -19,7 +19,7 @@ Right-click the visualizer area to choose an effect. The choice is remembered fo
 | Effect | Style |
 |---|---|
 | Reactor Core ☢ | Default — pulsing reactor with a layered background |
-| Second Reality ▩ | Future Crew '93 — six parts (starfield, glenz vectors, moiré, dot morph, warped logo, kefrens) that cut to the beat |
+| Second Horizon ▩ | 1993 PC demo style — six parts (starfield, glenz vectors, moiré, dot morph, warped logo, kefrens) that cut to the beat |
 | Zivert ✈ | Retrowave |
 | Aurora Mirror Wave | Neon mirrored waveform with a Catmull-Rom spline and multi-pass glow |
 | Neon Spectrum Bars | FFT spectrum analyser |
@@ -125,7 +125,7 @@ src/main/java/
 │   ├── Fft.java                        FFT used by the spectrum-driven effects
 │   ├── TextModeScreen.java             shared text-mode cell grid (DOS/BBS/C64/ZX effects)
 │   ├── ReactorBackground.java          layered backdrop for the Reactor effect
-│   └── *Visualizer.java                the 16 effects (Reactor, Second Reality, Zivert, …)
+│   └── *Visualizer.java                the 16 effects (Reactor, Second Horizon, Zivert, …)
 └── sdl2/
     ├── SDLMixerAudio.java              SDL2 / SDL2_mixer JNA bindings
     ├── AudioRingBuffer.java            lock-free SPSC ring buffer for PCM samples
