@@ -35,7 +35,7 @@ public class WaveformPanel extends JPanel {
 	/** Selectable visualizer styles, switched via the right-click context menu. */
 	public enum VisualizerMode {
 		AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS, DENDY,
-		C64, VECTREX, GAMEBOY, MAC, ZIVERT
+		C64, VECTREX, GAMEBOY, MAC, ZIVERT, SECOND_REALITY
 	}
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
@@ -146,6 +146,7 @@ public class WaveformPanel extends JPanel {
 	private final GameBoyVisualizer   gameboy   = new GameBoyVisualizer();
 	private final MacVisualizer       mac       = new MacVisualizer();
 	private final ZivertVisualizer    zivert    = new ZivertVisualizer();
+	private final SecondRealityVisualizer secondReality = new SecondRealityVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -167,6 +168,7 @@ public class WaveformPanel extends JPanel {
 		menu.addSeparator();
 
 		ButtonGroup group = new ButtonGroup();
+		JRadioButtonMenuItem secondItem    = new JRadioButtonMenuItem("Second Reality ▩ (Future Crew '93)", mode == VisualizerMode.SECOND_REALITY);
 		JRadioButtonMenuItem zivertItem    = new JRadioButtonMenuItem("Zivert ✈ (Retrowave)", mode == VisualizerMode.ZIVERT);
 		JRadioButtonMenuItem aurora        = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
 		JRadioButtonMenuItem spectrumItem  = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
@@ -182,6 +184,7 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem("Vectrex ✦ (Vector Glow)", mode == VisualizerMode.VECTREX);
 		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem("Game Boy ▦ (Falling Blocks)", mode == VisualizerMode.GAMEBOY);
 		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem("Macintosh ☺ (1-bit Dither)", mode == VisualizerMode.MAC);
+		secondItem.addActionListener(e -> selectMode(VisualizerMode.SECOND_REALITY));
 		zivertItem.addActionListener(e -> selectMode(VisualizerMode.ZIVERT));
 		aurora.addActionListener(e -> selectMode(VisualizerMode.AURORA));
 		spectrumItem.addActionListener(e -> selectMode(VisualizerMode.SPECTRUM));
@@ -197,6 +200,7 @@ public class WaveformPanel extends JPanel {
 		vectrexItem.addActionListener(e -> selectMode(VisualizerMode.VECTREX));
 		gameboyItem.addActionListener(e -> selectMode(VisualizerMode.GAMEBOY));
 		macItem.addActionListener(e -> selectMode(VisualizerMode.MAC));
+		group.add(secondItem);
 		group.add(zivertItem);
 		group.add(vectrexItem);
 		group.add(c64Item);
@@ -212,6 +216,7 @@ public class WaveformPanel extends JPanel {
 		group.add(spectrumItem);
 		group.add(reactorItem);
 		group.add(demosceneItem);
+		menu.add(secondItem);
 		menu.add(zivertItem);
 		menu.add(vectrexItem);
 		menu.add(c64Item);
@@ -258,6 +263,7 @@ public class WaveformPanel extends JPanel {
 			case GAMEBOY -> "Game Boy";
 			case MAC -> "Macintosh";
 			case ZIVERT -> "Zivert Retrowave";
+			case SECOND_REALITY -> "Second Reality";
 		};
 	}
 
@@ -279,6 +285,7 @@ public class WaveformPanel extends JPanel {
 		gameboy.setTrackTitle(title);
 		mac.setTrackTitle(title);
 		zivert.setTrackTitle(title);
+		secondReality.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -470,6 +477,10 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.ZIVERT) {
 				zivert.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.SECOND_REALITY) {
+				secondReality.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 
