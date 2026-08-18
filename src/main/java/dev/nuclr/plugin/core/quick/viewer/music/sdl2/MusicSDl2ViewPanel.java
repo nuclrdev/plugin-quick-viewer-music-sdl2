@@ -339,12 +339,19 @@ public class MusicSDl2ViewPanel extends JPanel {
 	}
 
 	private void updatePlayPauseIcon() {
-		if (TrackerMusic != null && TrackerMusic.isPlaying() && !TrackerMusic.isPaused()) {
+		boolean playing = TrackerMusic != null && TrackerMusic.isPlaying() && !TrackerMusic.isPaused();
+		if (playing) {
 			playPauseButton.setText("\u23F8");
 			playPauseButton.setToolTipText("Pause");
 		} else {
 			playPauseButton.setText("\u25B6");
 			playPauseButton.setToolTipText("Play");
+		}
+		// Freeze the visualizer whenever the audio is not advancing \u2014 paused, stopped, or a tune
+		// that has played out. Every path that changes playback state already comes through here,
+		// including the 250 ms progress timer, which catches a track ending on its own.
+		if (waveformPanel != null) {
+			waveformPanel.setPaused(!playing);
 		}
 	}
 

@@ -10,6 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 import javax.swing.ButtonGroup;
@@ -126,6 +127,8 @@ public class WaveformPanel extends JPanel {
 	private boolean trackerBackdropEnabled = false;
 	private double playbackPositionSeconds = 0.0d;
 	private long effectNameVisibleUntil;
+	private boolean paused;
+	private BufferedImage frozenFrame;
 	private String[][] trackerNotes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 	private String[][] trackerEffects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 
@@ -239,6 +242,9 @@ public class WaveformPanel extends JPanel {
 	private void selectMode(VisualizerMode selectedMode) {
 		mode = selectedMode;
 		showEffectName();
+		if (paused) {
+			captureFrozenFrame(getWidth(), getHeight());   // the still belongs to the old effect
+		}
 		repaint();
 	}
 
@@ -410,6 +416,102 @@ public class WaveformPanel extends JPanel {
 		int w = getWidth();
 		int h = getHeight();
 		if (w < 10 || h < 10) return;
+
+		if (paused) {
+			// Frozen: blit the frame captured when playback stopped. The visualizers are not
+			// called at all, so neither their internal state nor frameCount advances — which is
+			// also what keeps the FFT auto-gain from drifting up to its ceiling while silence
+			// streams in, and so what stops playback resuming with a brightness surge.
+			ensureFrozenFrame(w, h);
+			if (frozenFrame != null) {
+				g.drawImage(frozenFrame, 0, 0, null);
+				paintPausedBadge(g, w, h);
+				return;
+			}
+		}
+		renderFrame(g, w, h);
+	}
+
+	/**
+	 * Freeze or resume the visualizer. Frozen means the animation timer is stopped and a still of
+	 * the last frame is shown instead: a paused player should not keep a 60 fps repaint loop (and
+	 * every effect's animation) running against silence.
+	 */
+	public void setPaused(boolean value) {
+		if (paused == value) return;
+		paused = value;
+		if (paused) {
+			captureFrozenFrame(getWidth(), getHeight());
+			animTimer.stop();
+		} else {
+			frozenFrame = null;
+			if (!animTimer.isRunning()) animTimer.start();
+		}
+		repaint();
+	}
+
+	public boolean isPaused() {
+		return paused;
+	}
+
+	/** Resized while paused: re-render the still once at the new size rather than scaling it. */
+	private void ensureFrozenFrame(int w, int h) {
+		if (frozenFrame == null || frozenFrame.getWidth() != w || frozenFrame.getHeight() != h) {
+			captureFrozenFrame(w, h);
+		}
+	}
+
+	private void captureFrozenFrame(int w, int h) {
+		if (w < 10 || h < 10) {
+			frozenFrame = null;
+			return;
+		}
+		BufferedImage still = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g2 = still.createGraphics();
+		try {
+			renderFrame(g2, w, h);   // straight to the renderer: paintComponent would re-enter the freeze
+		} finally {
+			g2.dispose();
+		}
+		frozenFrame = still;
+	}
+
+	/** A held-frame marker, drawn with rectangles so it cannot depend on a glyph being present. */
+	private void paintPausedBadge(Graphics g, int w, int h) {
+		Graphics2D g2 = (Graphics2D) g.create();
+		try {
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(new Color(4, 6, 11, 92));
+			g2.fillRect(0, 0, w, h);   // dim the still so it reads as held, not as a hung frame
+
+			g2.setFont(getFont().deriveFont(Font.BOLD, 12f));
+			FontMetrics fm = g2.getFontMetrics();
+			String label   = "PAUSED";
+			int barW = 4, barGap = 3;
+			int barH = fm.getAscent();
+			int boxW = barW * 2 + barGap + 8 + fm.stringWidth(label) + 24;
+			int boxH = Math.max(barH, fm.getHeight()) + 16;
+			if (boxW > w - 8 || boxH > h - 8) return;   // no room: the still alone has to do
+
+			int x = (w - boxW) / 2;
+			int y = (h - boxH) / 2;
+			g2.setColor(new Color(5, 7, 12, 205));
+			g2.fillRoundRect(x, y, boxW, boxH, 10, 10);
+			g2.setColor(new Color(120, 150, 190, 120));
+			g2.drawRoundRect(x, y, boxW, boxH, 10, 10);
+
+			int cy = y + boxH / 2;
+			int bx = x + 12;
+			g2.setColor(new Color(239, 244, 252));
+			g2.fillRect(bx, cy - barH / 2, barW, barH);
+			g2.fillRect(bx + barW + barGap, cy - barH / 2, barW, barH);
+			g2.drawString(label, bx + barW * 2 + barGap + 8, cy + fm.getAscent() / 2 - 1);
+		} finally {
+			g2.dispose();
+		}
+	}
+
+	private void renderFrame(Graphics g, int w, int h) {
 		frameCount++;
 
 		Graphics2D g2 = (Graphics2D) g.create();
