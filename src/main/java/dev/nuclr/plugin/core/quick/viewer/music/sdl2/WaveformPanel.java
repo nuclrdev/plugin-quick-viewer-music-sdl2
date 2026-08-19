@@ -36,11 +36,11 @@ public class WaveformPanel extends JPanel {
 	/** Selectable visualizer styles, switched via the right-click context menu. */
 	public enum VisualizerMode {
 		AURORA, SPECTRUM, REACTOR, DEMOSCENE, INFERNO, AMIGA, ZX, DOS, BBS, DENDY,
-		C64, VECTREX, GAMEBOY, MAC, ZIVERT, SECOND_HORIZON, HYPERSPACE
+		C64, VECTREX, GAMEBOY, MAC, ZIVERT, SECOND_HORIZON, HYPERSPACE, INVASION
 	}
 
 	// Remembered across panel/instance recreation so the choice sticks for the session.
-	private static VisualizerMode mode = VisualizerMode.REACTOR;
+	private static VisualizerMode mode = VisualizerMode.AMIGA;
 
 	// ---- Background ----
 	private static final Color BG_TOP    = new Color(0x08, 0x09, 0x14);
@@ -151,6 +151,7 @@ public class WaveformPanel extends JPanel {
 	private final ZivertVisualizer    zivert    = new ZivertVisualizer();
 	private final SecondHorizonVisualizer secondHorizon = new SecondHorizonVisualizer();
 	private final HyperspaceVisualizer hyperspace = new HyperspaceVisualizer();
+	private final InvasionVisualizer invasion = new InvasionVisualizer();
 
 	public WaveformPanel() {
 		setOpaque(true);
@@ -172,6 +173,7 @@ public class WaveformPanel extends JPanel {
 		menu.addSeparator();
 
 		ButtonGroup group = new ButtonGroup();
+		JRadioButtonMenuItem invasionItem  = new JRadioButtonMenuItem("Invasion '95 ▣ (Reactive Swarm)", mode == VisualizerMode.INVASION);
 		JRadioButtonMenuItem hyperItem     = new JRadioButtonMenuItem("Hyperspace ◆ (Vector Rocks)", mode == VisualizerMode.HYPERSPACE);
 		JRadioButtonMenuItem secondItem    = new JRadioButtonMenuItem("Second Horizon ▩ (PC Demo '93)", mode == VisualizerMode.SECOND_HORIZON);
 		JRadioButtonMenuItem zivertItem    = new JRadioButtonMenuItem("Zivert ✈ (Retrowave)", mode == VisualizerMode.ZIVERT);
@@ -189,6 +191,7 @@ public class WaveformPanel extends JPanel {
 		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem("Vectrex ✦ (Vector Glow)", mode == VisualizerMode.VECTREX);
 		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem("Game Boy ▦ (Falling Blocks)", mode == VisualizerMode.GAMEBOY);
 		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem("Macintosh ☺ (1-bit Dither)", mode == VisualizerMode.MAC);
+		invasionItem.addActionListener(e -> selectMode(VisualizerMode.INVASION));
 		hyperItem.addActionListener(e -> selectMode(VisualizerMode.HYPERSPACE));
 		secondItem.addActionListener(e -> selectMode(VisualizerMode.SECOND_HORIZON));
 		zivertItem.addActionListener(e -> selectMode(VisualizerMode.ZIVERT));
@@ -206,6 +209,7 @@ public class WaveformPanel extends JPanel {
 		vectrexItem.addActionListener(e -> selectMode(VisualizerMode.VECTREX));
 		gameboyItem.addActionListener(e -> selectMode(VisualizerMode.GAMEBOY));
 		macItem.addActionListener(e -> selectMode(VisualizerMode.MAC));
+		group.add(invasionItem);
 		group.add(hyperItem);
 		group.add(secondItem);
 		group.add(zivertItem);
@@ -223,6 +227,7 @@ public class WaveformPanel extends JPanel {
 		group.add(spectrumItem);
 		group.add(reactorItem);
 		group.add(demosceneItem);
+		menu.add(invasionItem);
 		menu.add(hyperItem);
 		menu.add(secondItem);
 		menu.add(zivertItem);
@@ -276,6 +281,7 @@ public class WaveformPanel extends JPanel {
 			case ZIVERT -> "Zivert Retrowave";
 			case SECOND_HORIZON -> "Second Horizon";
 			case HYPERSPACE -> "Hyperspace";
+			case INVASION -> "Invasion '95";
 		};
 	}
 
@@ -299,6 +305,7 @@ public class WaveformPanel extends JPanel {
 		zivert.setTrackTitle(title);
 		secondHorizon.setTrackTitle(title);
 		hyperspace.setTrackTitle(title);
+		invasion.setTrackTitle(title);
 	}
 
 	public void stop() {
@@ -594,6 +601,10 @@ public class WaveformPanel extends JPanel {
 			}
 			if (mode == VisualizerMode.HYPERSPACE) {
 				hyperspace.render(g2, w, h, ringBuffer, frameCount);
+				return;
+			}
+			if (mode == VisualizerMode.INVASION) {
+				invasion.render(g2, w, h, ringBuffer, frameCount);
 				return;
 			}
 

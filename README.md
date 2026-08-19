@@ -7,18 +7,19 @@ A rich audio quick viewer plugin for **Nuclr Commander**. It opens music files d
 - 🎵 Plays music and audio files from Nuclr's quick view panel
 - 🎛️ Supports tracker formats: `xm`, `mod`, `s3m`, `it`, `669`
 - 🔊 Supports common audio formats: `mp3`, `ogg`, `flac`, `wav`, `aac`, `aiff`, `voc`, `mid`
-- 🌈 **17 live visualizers** driven from the SDL post-mix audio callback and an FFT — pick one from the right-click menu on the visualizer
+- 🌈 **18 live visualizers** driven from the SDL post-mix audio callback and an FFT — pick one from the right-click menu on the visualizer
 - ▶️ Play/pause, stop, seek, rewind (−10 s), and forward (+10 s) controls
 - 🎚️ Progress bar with seeking, plus a volume slider
 - ⏱️ Current time and total duration display (when SDL_mixer exposes them)
 
 ## 🌈 Visualizers
 
-Right-click the visualizer area to choose an effect. The choice is remembered for the rest of the session (the default is **Reactor Core**).
+Right-click the visualizer area to choose an effect. The choice is remembered for the rest of the session (the default is **Amiga Cracktro**).
 
 | Effect | Style |
 |---|---|
-| Reactor Core ☢ | Default — pulsing reactor with a layered background |
+| Reactor Core ☢ | Pulsing reactor with a layered background |
+| Invasion '95 ▣ | Descending-swarm shooter where each column of aliens is an FFT band — they ride their band, flash on its spikes, and the swarm marches on the kick |
 | Hyperspace ◆ | Vector-arcade rock shooter that plays itself — splitting asteroids, saucers, screen wrap, bloom; every shot fires on the kick |
 | Second Horizon ▩ | 1993 PC demo style — six parts (starfield, glenz vectors, moiré, dot morph, warped logo, kefrens) that cut to the beat |
 | Zivert ✈ | Retrowave |
@@ -26,7 +27,7 @@ Right-click the visualizer area to choose an effect. The choice is remembered fo
 | Neon Spectrum Bars | FFT spectrum analyser |
 | Assembly Demoscene ▲ | Demoscene tribute |
 | id Inferno ☠ | Rip & Tear |
-| Amiga Cracktro ◉ | Boing! |
+| Amiga Cracktro ◉ | Default — Boing! |
 | ZX Spectrum ▚ | `LOAD ""` loading stripes |
 | Norton Commander ▓ | MS-DOS text mode |
 | BBS / ANSI ▒ | 14400 baud ANSI art |
@@ -126,7 +127,7 @@ src/main/java/
 │   ├── Fft.java                        FFT used by the spectrum-driven effects
 │   ├── TextModeScreen.java             shared text-mode cell grid (DOS/BBS/C64/ZX effects)
 │   ├── ReactorBackground.java          layered backdrop for the Reactor effect
-│   └── *Visualizer.java                the 17 effects (Reactor, Hyperspace, Second Horizon, …)
+│   └── *Visualizer.java                the 18 effects (Reactor, Invasion '95, Hyperspace, …)
 └── sdl2/
     ├── SDLMixerAudio.java              SDL2 / SDL2_mixer JNA bindings
     ├── AudioRingBuffer.java            lock-free SPSC ring buffer for PCM samples
