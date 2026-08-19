@@ -22,7 +22,7 @@ Right-click the visualizer area to choose an effect. The choice is remembered fo
 | Invasion '95 ▣ | Descending-swarm shooter where each column of aliens is an FFT band — they ride their band, flash on its spikes, and the swarm marches on the kick |
 | Hyperspace ◆ | Vector-arcade rock shooter that plays itself — splitting asteroids, saucers, screen wrap, bloom; every shot fires on the kick |
 | Second Horizon ▩ | 1993 PC demo style — six parts (starfield, glenz vectors, moiré, dot morph, warped logo, kefrens) that cut to the beat |
-| Zivert ✈ | Retrowave |
+| Miami ✈ | Retrowave — outrun sunset, chrome wordmark, neon billboard |
 | Aurora Mirror Wave | Neon mirrored waveform with a Catmull-Rom spline and multi-pass glow |
 | Neon Spectrum Bars | FFT spectrum analyser |
 | Assembly Demoscene ▲ | Demoscene tribute |

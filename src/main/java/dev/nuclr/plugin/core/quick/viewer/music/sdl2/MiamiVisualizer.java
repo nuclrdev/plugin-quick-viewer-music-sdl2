@@ -19,18 +19,17 @@ import java.util.Random;
 import sdl2.AudioRingBuffer;
 
 /**
- * "Zivert" — a neon retrowave tribute to the Russian synth-pop chanteuse:
- * an outrun sunset that never ends.
+ * "Miami" — a neon retrowave sunset that never ends.
  * <p>
  * The scene is a full 80s/90s VHS fever dream: a scanline sun sinking into a
- * scrolling perspective grid, a chrome {@code ZIVERT} wordmark hanging in the
+ * scrolling perspective grid, a chrome {@code MIAMI} wordmark hanging in the
  * sky, an FFT-driven city-skyline equalizer along the horizon, palm
- * silhouettes swaying at the edges, and — because she flew before she sang —
- * a lone jet crossing the sky with blinking nav lights and a fading contrail.
+ * silhouettes swaying at the edges, and a lone jet crossing the sky with
+ * blinking nav lights and a fading contrail.
  * A roadside neon billboard planted on the grid carries a hand-pixelled
- * portrait homage — platinum bob, wrap-around visor with the sunset mirrored
+ * portrait — platinum bob, wrap-around visor with the sunset mirrored
  * in the glass, gold hoops, iridescent puffer — over a caption strip that
- * cycles through the discography.
+ * cycles through the hits.
  * <p>
  * Everything breathes with the music: bass swells the sun and speeds the
  * grid, each frequency band raises its own skyline tower, and beats flash the
@@ -40,7 +39,7 @@ import sdl2.AudioRingBuffer;
  * tape counter, track title) is drawn on top and never glitches — just like
  * the real thing.
  */
-final class ZivertVisualizer {
+final class MiamiVisualizer {
 
 	// ---- Layout ----
 	private static final float HORIZON_FRAC = 0.60f;
@@ -158,7 +157,7 @@ final class ZivertVisualizer {
 	private final float[] starSp = new float[STAR_COUNT];
 	private final int[]   starSz = new int[STAR_COUNT];
 
-	// ---- Jet (she was a flight attendant, after all) ----
+	// ---- Jet (there is always one crossing an outrun sky) ----
 	private boolean planeActive = false;
 	private float   planeX;      // fraction of width, moves left → right
 	private float   planeY;      // fraction of height
@@ -183,7 +182,7 @@ final class ZivertVisualizer {
 
 	private final Random rnd = new Random(0x21EA7L);
 
-	ZivertVisualizer() {
+	MiamiVisualizer() {
 		for (int i = 0; i < FFT_SIZE; i++) {
 			hann[i] = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FFT_SIZE - 1)));
 		}
@@ -459,7 +458,7 @@ final class ZivertVisualizer {
 		g.setFont(f);
 		FontMetrics fm = g.getFontMetrics();
 
-		String text = "ZIVERT";
+		String text = "MIAMI";
 		float tracking = size * 0.10f;
 		float total = -tracking;
 		for (int i = 0; i < text.length(); i++) {
@@ -677,7 +676,7 @@ final class ZivertVisualizer {
 			g.fillRect(ox, oy + r * s, SPW * s, Math.max(1, s / 2));
 		}
 
-		// Caption strip cycling through the discography.
+		// Caption strip cycling through the hits.
 		int capY = oy + SPH * s + s;
 		String hit = HITS[(frame / 900) % HITS.length];
 		int fs = Math.max(8, capH - 4);
