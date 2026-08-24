@@ -9,7 +9,9 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.LinearGradientPaint;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.geom.Path2D;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.Random;
 
@@ -32,6 +34,16 @@ import sdl2.AudioRingBuffer;
 public class WaveformPanel extends JPanel {
 	private static final long EFFECT_NAME_DURATION_NANOS = 4_000_000_000L;
 	private static final long EFFECT_NAME_FADE_NANOS = 600_000_000L;
+
+	// ---- Cover art overlay ----
+	/** Embedded album art is held at full strength for this long after a track loads... */
+	private static final long COVER_HOLD_NANOS = 5_000_000_000L;
+	/** ...and then dissolves over this long, leaving the effect unobstructed. */
+	private static final long COVER_FADE_NANOS = 900_000_000L;
+	private static final int COVER_MARGIN     = 12;
+	private static final int COVER_MIN_EDGE   = 44;
+	private static final int COVER_MAX_EDGE   = 160;
+	private static final int COVER_ARC        = 10;
 
 	/** Selectable visualizer styles, switched via the right-click context menu. */
 	public enum VisualizerMode {
@@ -129,6 +141,11 @@ public class WaveformPanel extends JPanel {
 	private long effectNameVisibleUntil;
 	private boolean paused;
 	private BufferedImage frozenFrame;
+	private BufferedImage coverArt;
+	private BufferedImage coverScaled;
+	private int coverScaledForEdge = -1;
+	private long coverVisibleUntil;
+	private Timer coverTimer;
 	private String[][] trackerNotes = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 	private String[][] trackerEffects = new String[TRACKER_ROWS][TRACKER_COLUMNS];
 
@@ -310,6 +327,9 @@ public class WaveformPanel extends JPanel {
 
 	public void stop() {
 		animTimer.stop();
+		if (coverTimer != null) {
+			coverTimer.stop();
+		}
 	}
 
 	public void start() {
@@ -375,6 +395,143 @@ public class WaveformPanel extends JPanel {
 	public void paint(Graphics g) {
 		super.paint(g);
 		paintEffectName(g);
+		paintCoverArt(g);
+	}
+
+	// ---- Cover art overlay ----
+
+	/**
+	 * Shows the track's embedded artwork in the top-right corner, over whatever effect is
+	 * running, for {@link #COVER_HOLD_NANOS} and then fades it out. Pass {@code null} to drop
+	 * any art currently on screen.
+	 * <p>
+	 * The overlay drives its own timer rather than riding the 60 fps animation timer, because
+	 * that one is stopped while playback is paused — and art still has to finish fading there.
+	 */
+	public void setCoverArt(BufferedImage art) {
+		coverArt = art;
+		coverScaled = null;
+		coverScaledForEdge = -1;
+		if (art == null) {
+			coverVisibleUntil = 0L;
+			if (coverTimer != null) {
+				coverTimer.stop();
+			}
+			repaint();
+			return;
+		}
+		coverVisibleUntil = System.nanoTime() + COVER_HOLD_NANOS + COVER_FADE_NANOS;
+		if (coverTimer == null) {
+			coverTimer = new Timer(33, e -> {
+				if (System.nanoTime() >= coverVisibleUntil) {
+					coverTimer.stop();
+					coverArt = null;     // faded out: let the decoded image go
+					coverScaled = null;
+					coverScaledForEdge = -1;
+				}
+				repaint();
+			});
+		}
+		coverTimer.restart();
+		repaint();
+	}
+
+	public void clearCoverArt() {
+		setCoverArt(null);
+	}
+
+	/**
+	 * The thumbnail to draw this frame, or {@code null} when there is no art on screen. Scaling
+	 * is cached, so calling this more than once per frame costs nothing.
+	 */
+	private BufferedImage coverThumb() {
+		BufferedImage art = coverArt;
+		if (art == null || coverVisibleUntil - System.nanoTime() <= 0L) {
+			return null;
+		}
+		int w = getWidth();
+		int h = getHeight();
+		// Scale with the panel but stay a corner badge: never more than a third of the width,
+		// and give up entirely on a pane too small for the art to read as anything.
+		int edge = Math.round(h * 0.42f);
+		edge = Math.min(edge, Math.round(w * 0.33f));
+		edge = Math.max(COVER_MIN_EDGE, Math.min(COVER_MAX_EDGE, edge));
+		if (edge > w - COVER_MARGIN * 2 || edge > h - COVER_MARGIN * 2) {
+			return null;
+		}
+		if (coverScaled == null || coverScaledForEdge != edge) {
+			coverScaled = scaleToFit(art, edge);
+			coverScaledForEdge = edge;
+		}
+		return coverScaled;
+	}
+
+	/** Horizontal space the art occupies on the right, margin included; 0 when it is not shown. */
+	private int coverOverlayWidth() {
+		BufferedImage thumb = coverThumb();
+		return thumb == null ? 0 : thumb.getWidth() + COVER_MARGIN;
+	}
+
+	private void paintCoverArt(Graphics g) {
+		BufferedImage thumb = coverThumb();
+		if (thumb == null) {
+			return;
+		}
+		long remaining = coverVisibleUntil - System.nanoTime();
+		float alpha = remaining < COVER_FADE_NANOS
+				? Math.max(0f, remaining / (float) COVER_FADE_NANOS)
+				: 1f;
+
+		int w = getWidth();
+		int drawW = thumb.getWidth();
+		int drawH = thumb.getHeight();
+		int x = w - drawW - COVER_MARGIN;
+		int y = COVER_MARGIN;
+
+		Graphics2D g2 = (Graphics2D) g.create();
+		try {
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g2.setComposite(java.awt.AlphaComposite.SrcOver.derive(alpha));
+
+			// A dark mat under the art so a pale cover still separates from a bright effect.
+			g2.setColor(new Color(4, 6, 11, 170));
+			g2.fillRoundRect(x - 4, y - 4, drawW + 8, drawH + 8, COVER_ARC + 3, COVER_ARC + 3);
+
+			Shape clip = new RoundRectangle2D.Float(
+					x, y, drawW, drawH, COVER_ARC, COVER_ARC);
+			Shape previousClip = g2.getClip();
+			g2.clip(clip);
+			g2.drawImage(thumb, x, y, null);
+			g2.setClip(previousClip);
+
+			g2.setColor(new Color(232, 240, 252, 120));
+			g2.draw(clip);
+		} finally {
+			g2.dispose();
+		}
+	}
+
+	/** Fits the art inside an {@code edge}×{@code edge} box, preserving its aspect ratio. */
+	private static BufferedImage scaleToFit(BufferedImage src, int edge) {
+		int sw = src.getWidth();
+		int sh = src.getHeight();
+		if (sw <= 0 || sh <= 0) {
+			return null;
+		}
+		double scale = Math.min(edge / (double) sw, edge / (double) sh);
+		int w = Math.max(1, (int) Math.round(sw * scale));
+		int h = Math.max(1, (int) Math.round(sh * scale));
+		BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g2 = out.createGraphics();
+		try {
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+			g2.drawImage(src, 0, 0, w, h, null);
+		} finally {
+			g2.dispose();
+		}
+		return out;
 	}
 
 	private void paintEffectName(Graphics g) {
@@ -393,7 +550,9 @@ public class WaveformPanel extends JPanel {
 			overlay.setFont(getFont().deriveFont(Font.BOLD, 11f));
 
 			FontMetrics metrics = overlay.getFontMetrics();
-			int maxTextWidth = getWidth() - 28;
+			// Cover art shares the top strip from the opposite corner; on a narrow pane the
+			// label has to give way rather than run underneath it.
+			int maxTextWidth = getWidth() - 28 - coverOverlayWidth();
 			if (maxTextWidth < metrics.stringWidth("...") + 4) {
 				return;
 			}

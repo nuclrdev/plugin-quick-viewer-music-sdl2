@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.nio.file.FileSystemException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -33,6 +34,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
@@ -67,6 +69,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 
 	private NuclrResource currentFile;
 	private Path stagedFile;
+	/** Bumped on every load so artwork decoded for a superseded track is discarded. */
+	private final AtomicLong coverArtToken = new AtomicLong();
 	private Timer updateTimer;
 	private WaveformPanel waveformPanel;
 
@@ -395,6 +399,10 @@ public class MusicSDl2ViewPanel extends JPanel {
 		this.currentFile = item;
 		Path file = null;
 
+		// Retire any art still on screen from the previous track before anything can fail below.
+		coverArtToken.incrementAndGet();
+		waveformPanel.clearCoverArt();
+
 		// SDL2 ships with the plugin on Windows but is a system package on Linux and macOS.
 		// Check before touching SDLMixerAudio: loading it without the native libraries fails
 		// inside a static initializer, which no catch below could report usefully.
@@ -440,6 +448,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			totalTimeLabel.setText("0:00");
 			waveformPanel.setPlaybackPositionSeconds(0);
 			updateTrackerBackdrop(name, ext);
+			loadCoverArt(file, ext, cancelled);
 
 			float vol = TrackerMusic.getVolume();
 			volumeSlider.setValue(Math.round(vol * 100));
@@ -600,6 +609,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 		releaseLoadedMusic();
 		deleteStagedFile();
 		currentFile = null;
+		coverArtToken.incrementAndGet();
+		waveformPanel.clearCoverArt();
 		waveformPanel.clearTrackerBackdrop();
 		trackNameLabel.setText("No track loaded");
 		trackInfoLabel.setText(" ");
@@ -705,6 +716,30 @@ public class MusicSDl2ViewPanel extends JPanel {
 			}
 		}
 		throw lastFailure != null ? lastFailure : new IOException("Failed to delete staged music file " + fileToDelete);
+	}
+
+	/**
+	 * Reads the track's embedded artwork off the staged file and hands it to the visualizer,
+	 * which shows it in a corner for a few seconds and then fades it out.
+	 * <p>
+	 * Runs off the caller's thread: decoding a full-size cover with ImageIO takes long enough
+	 * to be felt if the quick viewer opened us on the EDT, and it must never delay playback.
+	 * A token guards against a slow decode landing after the user has moved to another track.
+	 */
+	private void loadCoverArt(Path file, String extension, AtomicBoolean cancelled) {
+		long token = coverArtToken.get();
+		Thread.ofVirtual().name("nuclr-cover-art").start(() -> {
+			BufferedImage art = CoverArtExtractor.extract(file, extension);
+			if (art == null) {
+				return;
+			}
+			SwingUtilities.invokeLater(() -> {
+				if (coverArtToken.get() != token || (cancelled != null && cancelled.get())) {
+					return;   // a different track owns the panel now
+				}
+				waveformPanel.setCoverArt(art);
+			});
+		});
 	}
 
 	private void updateTrackerBackdrop(String name, String extension) {
