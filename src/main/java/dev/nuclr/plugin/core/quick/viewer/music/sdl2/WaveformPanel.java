@@ -32,6 +32,7 @@ import sdl2.AudioRingBuffer;
  * the wave edges and motion-trail ghost frames.
  */
 public class WaveformPanel extends JPanel {
+	private static final long ANIMATION_FRAME_NANOS = 1_000_000_000L / 60;
 	private static final long EFFECT_NAME_DURATION_NANOS = 4_000_000_000L;
 	private static final long EFFECT_NAME_FADE_NANOS = 600_000_000L;
 
@@ -136,6 +137,8 @@ public class WaveformPanel extends JPanel {
 	private float autoGain   = 1.0f;
 	private float signalLevel = 0.0f;
 	private int   frameCount = 0;
+	private long lastAnimationNanos;
+	private long animationRemainderNanos;
 	private boolean trackerBackdropEnabled = false;
 	private double playbackPositionSeconds = 0.0d;
 	private long effectNameVisibleUntil;
@@ -327,12 +330,14 @@ public class WaveformPanel extends JPanel {
 
 	public void stop() {
 		animTimer.stop();
+		lastAnimationNanos = 0;
 		if (coverTimer != null) {
 			coverTimer.stop();
 		}
 	}
 
 	public void start() {
+		lastAnimationNanos = 0;
 		if (!animTimer.isRunning()) animTimer.start();
 	}
 
@@ -618,6 +623,7 @@ public class WaveformPanel extends JPanel {
 			animTimer.stop();
 		} else {
 			frozenFrame = null;
+			lastAnimationNanos = 0;
 			if (!animTimer.isRunning()) animTimer.start();
 		}
 		repaint();
@@ -685,7 +691,7 @@ public class WaveformPanel extends JPanel {
 	}
 
 	private void renderFrame(Graphics g, int w, int h) {
-		frameCount++;
+		advanceAnimationClock(System.nanoTime());
 
 		Graphics2D g2 = (Graphics2D) g.create();
 		try {
@@ -824,6 +830,21 @@ public class WaveformPanel extends JPanel {
 		} finally {
 			g2.dispose();
 		}
+	}
+
+	/** Keep visual motion at its intended rate when Swing coalesces or delays repaints. */
+	private void advanceAnimationClock(long now) {
+		if (lastAnimationNanos == 0) {
+			lastAnimationNanos = now;
+			frameCount++;
+			return;
+		}
+		long elapsed = Math.max(0, now - lastAnimationNanos);
+		lastAnimationNanos = now;
+		animationRemainderNanos += elapsed;
+		long frames = animationRemainderNanos / ANIMATION_FRAME_NANOS;
+		animationRemainderNanos %= ANIMATION_FRAME_NANOS;
+		frameCount += (int) frames;
 	}
 
 	// ---- Idle state ----
