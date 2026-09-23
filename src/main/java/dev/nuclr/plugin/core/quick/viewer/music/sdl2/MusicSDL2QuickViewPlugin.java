@@ -1,5 +1,10 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,6 +19,8 @@ import sdl2.NativeLibExtractor;
 
 public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 	private static final String PLUGIN_DISABLE_EVENT = "plugin.disable";
+	/** Cover art lives in the tags at the head of a file; a remote track is copied only this far. */
+	private static final long MAX_THUMBNAIL_STAGE_BYTES = 32L * 1024 * 1024;
 	private static final String PLUGIN_ID_KEY = "pluginId";
 
 	private NuclrPluginContext context;
@@ -83,6 +90,72 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 		NativeLibExtractor.ensureExtracted();
 		panel();
 		return this.panel.load(resource, cancelled);
+	}
+
+	@Override
+	public boolean supportsThumbnails() {
+		return true;
+	}
+
+	/**
+	 * The track's embedded front cover. Never touches SDL, so it works whether or
+	 * not audio is available; a track without artwork has no thumbnail.
+	 */
+	@Override
+	public BufferedImage thumbnail(NuclrResource resource, int maxWidth, int maxHeight, AtomicBoolean cancelled) {
+		if (maxWidth <= 0 || maxHeight <= 0 || !supports(resource)) {
+			return null;
+		}
+		Path staged = null;
+		try {
+			Path file = resource.getPath();
+			if (file == null || !Files.isReadable(file)) {
+				staged = stageHead(resource, cancelled);
+				file = staged;
+			}
+			if (file == null || (cancelled != null && cancelled.get())) {
+				return null;
+			}
+			return ThumbnailScaler.fit(CoverArtExtractor.extract(file, extension(resource)), maxWidth, maxHeight);
+		} catch (Exception e) {
+			return null; // no readable artwork is just a track without a thumbnail
+		} finally {
+			if (staged != null) {
+				try {
+					Files.deleteIfExists(staged);
+				} catch (Exception e) {
+					staged.toFile().deleteOnExit();
+				}
+			}
+		}
+	}
+
+	/** Copies the head of a resource with no local file, or returns {@code null} if cancelled. */
+	private static Path stageHead(NuclrResource resource, AtomicBoolean cancelled) throws Exception {
+		Path temp = Files.createTempFile("nuclr-cover-art-", ".tmp");
+		boolean staged = false;
+		try {
+			try (InputStream in = resource.openInputStream(); OutputStream out = Files.newOutputStream(temp)) {
+				byte[] buffer = new byte[64 * 1024];
+				long total = 0;
+				int read;
+				while (total < MAX_THUMBNAIL_STAGE_BYTES
+						&& (read = in.read(buffer, 0, (int) Math.min(buffer.length, MAX_THUMBNAIL_STAGE_BYTES - total))) >= 0) {
+					if (cancelled != null && cancelled.get()) {
+						return null;
+					}
+					out.write(buffer, 0, read);
+					total += read;
+				}
+			}
+			staged = true;
+			return temp;
+		} finally {
+			// After the streams close: Windows will not delete a file that is still open.
+			if (!staged) {
+				Files.deleteIfExists(temp);
+			}
+		}
 	}
 
 	@Override

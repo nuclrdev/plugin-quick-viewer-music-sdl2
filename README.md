@@ -101,6 +101,12 @@ For a custom location:
 -Djna.library.path=/path/to/libs
 ```
 
+## 🖼️ Thumbnail
+
+The track's embedded front cover, from ID3, FLAC, Ogg/Opus, WAV and AIFF tags. A track without artwork - and any tracker module - has no thumbnail. SDL is never touched, so it works where playback does not; for a resource without a local file only the first 32 MB, where the tags are, is staged.
+
+It implements the platform SDK 6.0.0 thumbnail methods, so plugins that want a picture of a file - attachment chips in AI Projects, for one - get it through Commander.
+
 ## 📥 Installation
 
 Copy the signed plugin archive and detached signature into the Nuclr Commander `plugins/` directory:
@@ -141,7 +147,7 @@ src/main/java/
 
 | Library | Version | Purpose |
 |---|---|---|
-| `dev.nuclr:platform-sdk` | `3.0.1` | Nuclr platform interfaces |
+| `dev.nuclr:platform-sdk` | `6.0.0` | Nuclr platform interfaces |
 | `jna` | `5.18.1` | Native SDL2 / SDL2_mixer bindings |
 
 ## 🌐 Links
