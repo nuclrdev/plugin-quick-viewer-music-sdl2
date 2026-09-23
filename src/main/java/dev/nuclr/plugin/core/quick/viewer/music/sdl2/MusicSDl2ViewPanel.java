@@ -62,7 +62,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 	public static final Set<String> allowedExtensions = Set.of(
 			"wav", "flac", "aac", "voc", "aiff", "mid",
 			"ogg", "mp3", "xm", "mod", "s3m", "it", "669");
-	private static final Set<String> moduleExtensions = Set.of("xm", "mod", "s3m", "it", "669");
+	static final Set<String> moduleExtensions = Set.of("xm", "mod", "s3m", "it", "669");
 
 	public static SDLMixerAudio TrackerMusic;
 	private static AudioRingBuffer audioRingBuffer;

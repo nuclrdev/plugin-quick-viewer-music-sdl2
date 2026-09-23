@@ -1,6 +1,7 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -9,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 
 import dev.nuclr.platform.NuclrThemeScheme;
@@ -98,14 +100,45 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 	}
 
 	/**
-	 * The track's embedded front cover. Never touches SDL, so it works whether or
-	 * not audio is available; a track without artwork has no thumbnail.
+	 * The track's embedded front cover, or - for a track without one - the plugin's own
+	 * icon: the tracker icon for a module, which carries no artwork at all, and the
+	 * audio icon for anything else. Never touches SDL, so it works whether or not audio
+	 * is available.
 	 */
 	@Override
 	public BufferedImage thumbnail(NuclrResource resource, int maxWidth, int maxHeight, AtomicBoolean cancelled) {
 		if (maxWidth <= 0 || maxHeight <= 0 || !supports(resource)) {
 			return null;
 		}
+		String extension = extension(resource);
+		boolean module = MusicSDl2ViewPanel.moduleExtensions.contains(extension.toLowerCase(Locale.ROOT));
+		BufferedImage picture = module ? null : coverArt(resource, extension, cancelled);
+		if (cancelled != null && cancelled.get()) {
+			return null;
+		}
+		if (picture == null) {
+			picture = module ? FallbackIcons.TRACKER : FallbackIcons.AUDIO;
+		}
+		return ThumbnailScaler.fit(picture, maxWidth, maxHeight);
+	}
+
+	/** Icons for a track without cover art, decoded once, on first use. */
+	private static final class FallbackIcons {
+
+		static final BufferedImage TRACKER = load("/icons/tracker-icon.png");
+		static final BufferedImage AUDIO = load("/icons/audio-icon.png");
+
+		private static BufferedImage load(String resource) {
+			try (InputStream in = MusicSDL2QuickViewPlugin.class.getResourceAsStream(resource)) {
+				return in == null ? null : ImageIO.read(in);
+			} catch (IOException e) {
+				return null;
+			}
+		}
+	}
+
+	/** The embedded front cover, or {@code null} when there is none or it cannot be read. */
+	private static BufferedImage coverArt(NuclrResource resource, String extension, AtomicBoolean cancelled) {
 		Path staged = null;
 		try {
 			Path file = resource.getPath();
@@ -116,9 +149,9 @@ public class MusicSDL2QuickViewPlugin implements QuickViewNuclrPlugin {
 			if (file == null || (cancelled != null && cancelled.get())) {
 				return null;
 			}
-			return ThumbnailScaler.fit(CoverArtExtractor.extract(file, extension(resource)), maxWidth, maxHeight);
+			return CoverArtExtractor.extract(file, extension);
 		} catch (Exception e) {
-			return null; // no readable artwork is just a track without a thumbnail
+			return null; // no readable artwork is just a track without its own picture
 		} finally {
 			if (staged != null) {
 				try {

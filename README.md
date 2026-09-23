@@ -103,7 +103,7 @@ For a custom location:
 
 ## 🖼️ Thumbnail
 
-The track's embedded front cover, from ID3, FLAC, Ogg/Opus, WAV and AIFF tags. A track without artwork - and any tracker module - has no thumbnail. SDL is never touched, so it works where playback does not; for a resource without a local file only the first 32 MB, where the tags are, is staged.
+The track's embedded front cover, from ID3, FLAC, Ogg/Opus, WAV and AIFF tags. A track without artwork gets the plugin's own icon instead: `tracker-icon.png` for a tracker module (XM, MOD, S3M, IT, 669), which carries no artwork, and `audio-icon.png` for any other format. SDL is never touched, so it works where playback does not; for a resource without a local file only the first 32 MB, where the tags are, is staged.
 
 It implements the platform SDK 6.0.0 thumbnail methods, so plugins that want a picture of a file - attachment chips in AI Projects, for one - get it through Commander.
 
