@@ -40,6 +40,104 @@ jobs:
             -Djarsigner.keystorepath="$RUNNER_TEMP/nuclr-signing.p12" \
             -Djarsigner.keyalias="$JARSIGNER_KEYALIAS"
 
+      # The plugin ZIP ships inside the notarized macOS app, and Apple's notary
+      # service rejects any macOS library in it (here inside the bundled JARs)
+      # that lacks a Developer ID signature. So they are signed here, on Linux
+      # with rcodesign, and the ZIP's detached .sig is then made again.
+      # .github/scripts/sign_macos_natives.py is a copy of commander's
+      # build/macos/sign_jar_natives.py.
+      - name: Sign the macOS native libraries inside the plugin
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.version }}
+          # Not RCODESIGN_*: rcodesign reads every variable with that prefix as
+          # configuration and rejects ones it does not know.
+          APPLE_CODESIGN_VERSION: 0.29.0
+          APPLE_CODESIGN_SHA256: dbe85cedd8ee4217b64e9a0e4c2aef92ab8bcaaa41f20bde99781ff02e600002
+        run: |
+          set -euo pipefail
+          if [ -z "${MACOS_CERT_P12_BASE64:-}" ] || [ -z "${MACOS_CERT_PASSWORD:-}" ]; then
+            echo "::error::MACOS_CERT_P12_BASE64 and MACOS_CERT_PASSWORD must be set: unsigned macOS libraries in this plugin fail the notarization of Commander's macOS app."
+            exit 1
+          fi
+
+          archive="apple-codesign-$APPLE_CODESIGN_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$APPLE_CODESIGN_VERSION/$archive" \
+            --output "$RUNNER_TEMP/$archive"
+          echo "$APPLE_CODESIGN_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          rcodesign="$(find "$RUNNER_TEMP" -name rcodesign -type f -perm -u+x | head -n 1)"
+
+          umask 077
+          p12="$RUNNER_TEMP/developer-id.p12"
+          identity="$RUNNER_TEMP/developer-id.pem"
+          trap 'rm -f "$p12" "$identity"' EXIT
+          printf '%s' "$MACOS_CERT_P12_BASE64" | tr -d '\r\n ' | base64 --decode > "$p12"
+          # Only the Developer ID certificate (-clcerts) and its key: the .p12
+          # also carries Apple's intermediate CA, which rcodesign would
+          # otherwise sign with. A .p12 written by OpenSSL 1.1 uses RC2, which
+          # OpenSSL 3 reads only with -legacy.
+          extract() {
+            { openssl pkcs12 -in "$p12" -passin env:MACOS_CERT_PASSWORD "$@" -clcerts -nokeys &&
+              openssl pkcs12 -in "$p12" -passin env:MACOS_CERT_PASSWORD "$@" -nocerts -nodes; } > "$identity" 2>/dev/null
+          }
+          extract || extract -legacy || {
+            echo "::error::Cannot read MACOS_CERT_P12_BASE64 with MACOS_CERT_PASSWORD."
+            exit 1
+          }
+          subject="$(openssl x509 -in "$identity" -noout -subject)"
+          echo "Signing identity: $subject"
+          case "$subject" in
+            *"Developer ID Application"*) ;;
+            *) echo "::error::The .p12 does not hold a 'Developer ID Application' certificate."; exit 1 ;;
+          esac
+
+          zip="$(ls target/*-"$VERSION".zip)"
+          python3 .github/scripts/sign_macos_natives.py "$zip" "$rcodesign" "$identity"
+
+      # Same algorithm, key and alias as the build's own signing step.
+      - name: Re-create the detached signature over the changed ZIP
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.P12_KEY_ALIAS }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          zip="$(ls target/*-"$VERSION".zip)"
+          cat > "$RUNNER_TEMP/SignDetached.java" <<'JAVA'
+          import java.io.FileInputStream;
+          import java.nio.file.Files;
+          import java.nio.file.Path;
+          import java.security.KeyStore;
+          import java.security.PrivateKey;
+          import java.security.Signature;
+
+          public final class SignDetached {
+              public static void main(String[] args) throws Exception {
+                  char[] password = System.getenv("KEYSTORE_PASSWORD").toCharArray();
+                  KeyStore keyStore = KeyStore.getInstance("PKCS12");
+                  try (FileInputStream in = new FileInputStream(args[0])) {
+                      keyStore.load(in, password);
+                  }
+                  PrivateKey key = (PrivateKey) keyStore.getKey(System.getenv("KEY_ALIAS"), password);
+                  Signature signature = Signature.getInstance("SHA256withRSA");
+                  signature.initSign(key);
+                  signature.update(Files.readAllBytes(Path.of(args[1])));
+                  Files.write(Path.of(args[2]), signature.sign());
+              }
+          }
+          JAVA
+          java "$RUNNER_TEMP/SignDetached.java" "$RUNNER_TEMP/nuclr-signing.p12" "$zip" "$zip.sig"
+
+          # Prove the new .sig verifies with the signing certificate, so a broken
+          # signature can never be published.
+          keytool -exportcert -rfc -alias "$KEY_ALIAS" -keystore "$RUNNER_TEMP/nuclr-signing.p12" \
+            -storetype PKCS12 -storepass "$KEYSTORE_PASSWORD" > "$RUNNER_TEMP/nuclr-signing.pem"
+          openssl x509 -in "$RUNNER_TEMP/nuclr-signing.pem" -pubkey -noout > "$RUNNER_TEMP/nuclr-signing.pub"
+          openssl dgst -sha256 -verify "$RUNNER_TEMP/nuclr-signing.pub" -signature "$zip.sig" "$zip"
+
       - name: Tag release
         run: |
           git config user.name "github-actions[bot]"
