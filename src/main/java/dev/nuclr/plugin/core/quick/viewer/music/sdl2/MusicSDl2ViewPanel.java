@@ -1,5 +1,7 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
+import static dev.nuclr.plugin.core.quick.viewer.music.sdl2.Messages.tr;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -130,7 +132,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		infoPanel.setBackground(bgColor);
 		infoPanel.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
-		trackNameLabel = new JLabel("No track loaded");
+		trackNameLabel = new JLabel(tr("player.no.track"));
 		trackNameLabel.setFont(new Font("JetBrains Mono", Font.BOLD, 14));
 		trackNameLabel.setForeground(textPrimary);
 		trackNameLabel.setAlignmentX(CENTER_ALIGNMENT);
@@ -182,10 +184,10 @@ public class MusicSDl2ViewPanel extends JPanel {
 		buttonPanel.setBackground(bgColor);
 		buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
-		rewindButton = createControlButton("\u23EE", "Rewind 10s");
-		playPauseButton = createControlButton("\u25B6", "Play");
-		stopButton = createControlButton("\u25A0", "Stop");
-		forwardButton = createControlButton("\u23ED", "Forward 10s");
+		rewindButton = createControlButton("\u23EE", tr("player.rewind"));
+		playPauseButton = createControlButton("\u25B6", tr("player.play"));
+		stopButton = createControlButton("\u25A0", tr("player.stop"));
+		forwardButton = createControlButton("\u23ED", tr("player.forward"));
 
 		playPauseButton.setPreferredSize(new Dimension(44, 36));
 		playPauseButton.setFont(playPauseButton.getFont().deriveFont(16f));
@@ -243,8 +245,8 @@ public class MusicSDl2ViewPanel extends JPanel {
 		gbc.fill = GridBagConstraints.NONE;
 		volumePanel.add(volumeLabel, gbc);
 
-		loopCheckBox = new JCheckBox("Loop", loopEnabled);
-		loopCheckBox.setToolTipText("Repeat the track when it finishes");
+		loopCheckBox = new JCheckBox(tr("player.loop"), loopEnabled);
+		loopCheckBox.setToolTipText(tr("player.loop.tooltip"));
 		loopCheckBox.setFont(new Font("JetBrains Mono", Font.PLAIN, 11));
 		loopCheckBox.setForeground(textSecondary);
 		loopCheckBox.setBackground(bgColor);
@@ -346,10 +348,10 @@ public class MusicSDl2ViewPanel extends JPanel {
 		boolean playing = TrackerMusic != null && TrackerMusic.isPlaying() && !TrackerMusic.isPaused();
 		if (playing) {
 			playPauseButton.setText("\u23F8");
-			playPauseButton.setToolTipText("Pause");
+			playPauseButton.setToolTipText(tr("player.pause"));
 		} else {
 			playPauseButton.setText("\u25B6");
-			playPauseButton.setToolTipText("Play");
+			playPauseButton.setToolTipText(tr("player.play"));
 		}
 		// Freeze the visualizer whenever the audio is not advancing \u2014 paused, stopped, or a tune
 		// that has played out. Every path that changes playback state already comes through here,
@@ -408,7 +410,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		// inside a static initializer, which no catch below could report usefully.
 		if (!Sdl2Support.isAvailable()) {
 			Sdl2Support.showMissingLibraryDialog(this, disablePlugin);
-			trackNameLabel.setText("SDL2 audio libraries missing");
+			trackNameLabel.setText(tr("player.sdl.missing"));
 			trackInfoLabel.setText(Sdl2Support.shortHint());
 			waveformPanel.clearTrackerBackdrop();
 			return false;
@@ -442,7 +444,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 			String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1) : "";
 			String extUpper = ext.toUpperCase();
 			trackNameLabel.setText(name);
-			trackInfoLabel.setText(extUpper + " audio");
+			trackInfoLabel.setText(tr("player.format.audio", extUpper));
 			progressBar.setProgress(0);
 			currentTimeLabel.setText("0:00");
 			totalTimeLabel.setText("0:00");
@@ -461,13 +463,13 @@ public class MusicSDl2ViewPanel extends JPanel {
 			// interfaces, which is an Error and would otherwise sail past the catch below.
 			log.error("SDL2 native libraries could not be initialised", e);
 			Sdl2Support.showMissingLibraryDialog(this, disablePlugin);
-			trackNameLabel.setText("SDL2 audio libraries missing");
+			trackNameLabel.setText(tr("player.sdl.missing"));
 			trackInfoLabel.setText(Sdl2Support.shortHint());
 			waveformPanel.clearTrackerBackdrop();
 			return false;
 		} catch (Exception e) {
 			log.error("Failed to read music file: {}", file != null ? file.toAbsolutePath() : currentFile, e);
-			trackNameLabel.setText("Error loading file");
+			trackNameLabel.setText(tr("player.error.loading"));
 			trackInfoLabel.setText(e.getMessage());
 			waveformPanel.clearTrackerBackdrop();
 			return false;
@@ -612,7 +614,7 @@ public class MusicSDl2ViewPanel extends JPanel {
 		coverArtToken.incrementAndGet();
 		waveformPanel.clearCoverArt();
 		waveformPanel.clearTrackerBackdrop();
-		trackNameLabel.setText("No track loaded");
+		trackNameLabel.setText(tr("player.no.track"));
 		trackInfoLabel.setText(" ");
 		progressBar.setProgress(0);
 		currentTimeLabel.setText("0:00");

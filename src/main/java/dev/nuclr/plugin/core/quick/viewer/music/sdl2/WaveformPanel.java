@@ -1,5 +1,7 @@
 package dev.nuclr.plugin.core.quick.viewer.music.sdl2;
 
+import static dev.nuclr.plugin.core.quick.viewer.music.sdl2.Messages.tr;
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -176,7 +178,7 @@ public class WaveformPanel extends JPanel {
 	public WaveformPanel() {
 		setOpaque(true);
 		setBackground(BG_BOTTOM);
-		setToolTipText("Right-click to change the visualizer effect");
+		setToolTipText(tr("visualizer.tooltip"));
 		installVisualizerMenu();
 		showEffectName();
 		animTimer = new Timer(16, e -> repaint()); // ~60 fps
@@ -187,30 +189,30 @@ public class WaveformPanel extends JPanel {
 	private void installVisualizerMenu() {
 		JPopupMenu menu = new JPopupMenu();
 
-		JMenuItem header = new JMenuItem("Visualizer effect");
+		JMenuItem header = new JMenuItem(tr("visualizer.menu.header"));
 		header.setEnabled(false);
 		menu.add(header);
 		menu.addSeparator();
 
 		ButtonGroup group = new ButtonGroup();
-		JRadioButtonMenuItem invasionItem  = new JRadioButtonMenuItem("Invasion '95 ▣ (Reactive Swarm)", mode == VisualizerMode.INVASION);
-		JRadioButtonMenuItem hyperItem     = new JRadioButtonMenuItem("Hyperspace ◆ (Vector Rocks)", mode == VisualizerMode.HYPERSPACE);
-		JRadioButtonMenuItem secondItem    = new JRadioButtonMenuItem("Second Horizon ▩ (PC Demo '93)", mode == VisualizerMode.SECOND_HORIZON);
-		JRadioButtonMenuItem miamiItem    = new JRadioButtonMenuItem("Miami ✈ (Retrowave)", mode == VisualizerMode.MIAMI);
-		JRadioButtonMenuItem aurora        = new JRadioButtonMenuItem("Aurora Mirror Wave", mode == VisualizerMode.AURORA);
-		JRadioButtonMenuItem spectrumItem  = new JRadioButtonMenuItem("Neon Spectrum Bars", mode == VisualizerMode.SPECTRUM);
-		JRadioButtonMenuItem reactorItem   = new JRadioButtonMenuItem("Reactor Core ☢", mode == VisualizerMode.REACTOR);
-		JRadioButtonMenuItem demosceneItem = new JRadioButtonMenuItem("Assembly Demoscene ▲", mode == VisualizerMode.DEMOSCENE);
+		JRadioButtonMenuItem invasionItem  = new JRadioButtonMenuItem(tr("visualizer.menu.invasion"), mode == VisualizerMode.INVASION);
+		JRadioButtonMenuItem hyperItem     = new JRadioButtonMenuItem(tr("visualizer.menu.hyperspace"), mode == VisualizerMode.HYPERSPACE);
+		JRadioButtonMenuItem secondItem    = new JRadioButtonMenuItem(tr("visualizer.menu.second.horizon"), mode == VisualizerMode.SECOND_HORIZON);
+		JRadioButtonMenuItem miamiItem    = new JRadioButtonMenuItem(tr("visualizer.menu.miami"), mode == VisualizerMode.MIAMI);
+		JRadioButtonMenuItem aurora        = new JRadioButtonMenuItem(tr("visualizer.menu.aurora"), mode == VisualizerMode.AURORA);
+		JRadioButtonMenuItem spectrumItem  = new JRadioButtonMenuItem(tr("visualizer.menu.spectrum"), mode == VisualizerMode.SPECTRUM);
+		JRadioButtonMenuItem reactorItem   = new JRadioButtonMenuItem(tr("visualizer.menu.reactor"), mode == VisualizerMode.REACTOR);
+		JRadioButtonMenuItem demosceneItem = new JRadioButtonMenuItem(tr("visualizer.menu.demoscene"), mode == VisualizerMode.DEMOSCENE);
 		JRadioButtonMenuItem infernoItem   = new JRadioButtonMenuItem("id Inferno ☠ (Rip & Tear)", mode == VisualizerMode.INFERNO);
 		JRadioButtonMenuItem amigaItem     = new JRadioButtonMenuItem("Amiga Cracktro ◉ (Boing!)", mode == VisualizerMode.AMIGA);
 		JRadioButtonMenuItem zxItem        = new JRadioButtonMenuItem("ZX Spectrum ▚ LOAD \"\"", mode == VisualizerMode.ZX);
 		JRadioButtonMenuItem dosItem       = new JRadioButtonMenuItem("Norton Commander ▓ (MS-DOS)", mode == VisualizerMode.DOS);
-		JRadioButtonMenuItem bbsItem       = new JRadioButtonMenuItem("BBS / ANSI ▒ (14400 baud)", mode == VisualizerMode.BBS);
+		JRadioButtonMenuItem bbsItem       = new JRadioButtonMenuItem(tr("visualizer.menu.bbs"), mode == VisualizerMode.BBS);
 		JRadioButtonMenuItem dendyItem     = new JRadioButtonMenuItem("Dendy ▲ (TANK 1990)", mode == VisualizerMode.DENDY);
 		JRadioButtonMenuItem c64Item       = new JRadioButtonMenuItem("C64 PETSCII ▞ LOAD\"*\",8,1", mode == VisualizerMode.C64);
-		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem("Vectrex ✦ (Vector Glow)", mode == VisualizerMode.VECTREX);
-		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem("Game Boy ▦ (Falling Blocks)", mode == VisualizerMode.GAMEBOY);
-		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem("Macintosh ☺ (1-bit Dither)", mode == VisualizerMode.MAC);
+		JRadioButtonMenuItem vectrexItem   = new JRadioButtonMenuItem(tr("visualizer.menu.vectrex"), mode == VisualizerMode.VECTREX);
+		JRadioButtonMenuItem gameboyItem   = new JRadioButtonMenuItem(tr("visualizer.menu.gameboy"), mode == VisualizerMode.GAMEBOY);
+		JRadioButtonMenuItem macItem       = new JRadioButtonMenuItem(tr("visualizer.menu.mac"), mode == VisualizerMode.MAC);
 		invasionItem.addActionListener(e -> selectMode(VisualizerMode.INVASION));
 		hyperItem.addActionListener(e -> selectMode(VisualizerMode.HYPERSPACE));
 		secondItem.addActionListener(e -> selectMode(VisualizerMode.SECOND_HORIZON));
@@ -284,10 +286,10 @@ public class WaveformPanel extends JPanel {
 
 	private static String effectName(VisualizerMode selectedMode) {
 		return switch (selectedMode) {
-			case AURORA -> "Aurora Mirror Wave";
-			case SPECTRUM -> "Neon Spectrum Bars";
-			case REACTOR -> "Reactor Core";
-			case DEMOSCENE -> "Assembly Demoscene";
+			case AURORA -> tr("visualizer.name.aurora");
+			case SPECTRUM -> tr("visualizer.name.spectrum");
+			case REACTOR -> tr("visualizer.name.reactor");
+			case DEMOSCENE -> tr("visualizer.name.demoscene");
 			case INFERNO -> "id Inferno";
 			case AMIGA -> "Amiga Cracktro";
 			case ZX -> "ZX Spectrum";
@@ -665,7 +667,7 @@ public class WaveformPanel extends JPanel {
 
 			g2.setFont(getFont().deriveFont(Font.BOLD, 12f));
 			FontMetrics fm = g2.getFontMetrics();
-			String label   = "PAUSED";
+			String label   = tr("visualizer.paused");
 			int barW = 4, barGap = 3;
 			int barH = fm.getAscent();
 			int boxW = barW * 2 + barGap + 8 + fm.stringWidth(label) + 24;
